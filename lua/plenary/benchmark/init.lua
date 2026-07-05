@@ -97,8 +97,8 @@ local bench = function(name, opts)
     opts = { opts, "table" },
     fun = { opts.fun, "table" },
   }
-  opts.warmup = vim.F.if_nil(opts.warmup, 3)
-  opts.runs = vim.F.if_nil(opts.runs, 5)
+  opts.warmup = vim.nonnil(opts.warmup, 3)
+  opts.runs = vim.nonnil(opts.runs, 5)
 
   opts.fun = type(opts.fun) == "function" and { opts.fun } or opts.fun
   local output = { string.format("Benchmark Group: '%s' -----------------------\n", name) }

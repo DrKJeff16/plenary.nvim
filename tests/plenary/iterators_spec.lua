@@ -1,5 +1,5 @@
-local i = require "plenary.iterators"
-local f = require "plenary.functional"
+local i = require("plenary.iterators")
+local f = require("plenary.functional")
 local eq = assert.are.same
 
 local function check_keys(tbl, keys)
@@ -65,7 +65,7 @@ describe("iterators", function()
     local tbl_iter = i.iter(tbl)
     local res = tbl_iter:find(2)
     eq(res, 2)
-    res = tbl_iter:find "will not find this"
+    res = tbl_iter:find("will not find this")
     assert(not res)
 
     tbl = { 1, 2, 3, 4, "some random string", 6 }
@@ -78,9 +78,9 @@ describe("iterators", function()
   end)
 
   it("should be table to chain", function()
-    local first = i.iter { 1, 2, 3 }
-    local second = i.iter { 4, 5, 6, 7 }
-    local third = i.iter { 8, 9, 10 }
+    local first = i.iter({ 1, 2, 3 })
+    local second = i.iter({ 4, 5, 6, 7 })
+    local third = i.iter({ 8, 9, 10 })
     local res = (first .. second .. third):tolist()
     eq(res, i.range(10):tolist())
   end)
@@ -106,7 +106,7 @@ describe("iterators", function()
   it("should be able to flatten", function()
     local iter = i.range(3)
       :map(function(_)
-        return i.iter { 5, 7, 9 }
+        return i.iter({ 5, 7, 9 })
       end)
       :flatten()
       :stateful()
@@ -121,19 +121,19 @@ describe("iterators", function()
     eq(iter(), 9)
     local iter = i.range(3)
       :map(function(_)
-        return i.iter { 5, 7, 9 }
+        return i.iter({ 5, 7, 9 })
       end)
       :flatten()
     eq(iter:tolist(), { 5, 7, 9, 5, 7, 9, 5, 7, 9 })
   end)
 
   it("should be able to flatten very nested stuff", function()
-    local iter = i.iter({ 5, 6, i.iter { i.iter { 5, 5 }, 7, 8 }, i.iter { 9, 10, i.iter { 1, 2 } } }):flatten()
+    local iter = i.iter({ 5, 6, i.iter({ i.iter({ 5, 5 }), 7, 8 }), i.iter({ 9, 10, i.iter({ 1, 2 }) }) }):flatten()
     eq(iter:tolist(), { 5, 6, 5, 5, 7, 8, 9, 10, 1, 2 })
   end)
 
   it("chaining nil should work", function()
-    local iter = i.iter(""):chain(i.iter { 5, 7, 9 })
+    local iter = i.iter(""):chain(i.iter({ 5, 7, 9 }))
     eq(#iter:tolist(), 3)
   end)
 

@@ -1,4 +1,4 @@
-local Enum = require "plenary.enum"
+local Enum = require("plenary.enum")
 
 local function should_fail(fun)
   local stat = pcall(fun)
@@ -7,13 +7,13 @@ end
 
 describe("Enum", function()
   it("should be able to define specific values for members", function()
-    local E = Enum {
+    local E = Enum({
       { "Foo", 2 },
       { "Bar", 4 },
       "Qux",
       "Baz",
       { "Another", 11 },
-    }
+    })
 
     assert(E.Foo.value == 2)
     assert(E.Bar.value == 4)
@@ -28,18 +28,18 @@ describe("Enum", function()
     assert(E[11] == "Another")
   end)
   it("should compare with itself", function()
-    local E1 = Enum {
+    local E1 = Enum({
       "Foo",
       { "Qux", 11 },
       "Bar",
       "Baz",
-    }
+    })
 
-    local E2 = Enum {
+    local E2 = Enum({
       "Foo",
       "Bar",
       "Baz",
-    }
+    })
 
     assert(E1.Foo < E1.Qux)
     assert(E1.Baz > E1.Bar)
@@ -55,11 +55,11 @@ describe("Enum", function()
     end)
   end)
   it("should error when accessing invalid field", function()
-    local E = Enum {
+    local E = Enum({
       "Foo",
       "Bar",
       "Baz",
-    }
+    })
 
     should_fail(function()
       return E.foo
@@ -71,23 +71,23 @@ describe("Enum", function()
   end)
   it("should fail if there is name or index clashing", function()
     should_fail(function()
-      return Enum {
+      return Enum({
         "Foo",
         "Foo",
-      }
+      })
     end)
     should_fail(function()
-      return Enum {
+      return Enum({
         "Foo",
         { "Bar", 1 },
-      }
+      })
     end)
   end)
   it("should fail if there is a key that starts with lowercase", function()
     should_fail(function()
-      return Enum {
+      return Enum({
         "foo",
-      }
+      })
     end)
   end)
 end)

@@ -1,4 +1,4 @@
-local strings = require "plenary.strings"
+local strings = require("plenary.strings")
 
 local Border = {}
 

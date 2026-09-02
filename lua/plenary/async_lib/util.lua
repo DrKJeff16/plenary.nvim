@@ -1,14 +1,14 @@
-local a = require "plenary.async_lib.async"
+local a = require("plenary.async_lib.async")
 local await = a.await
 local async = a.async
-local co = coroutine
 local Deque = require("plenary.async_lib.structs").Deque
-local uv = vim.loop
+local uv = vim.uv or vim.loop
 
 local M = {}
 
 ---Sleep for milliseconds
----@param ms number
+---@param ms integer
+---@param callback function
 M.sleep = a.wrap(function(ms, callback)
   local timer = uv.new_timer()
   uv.timer_start(timer, ms, 0, function()
@@ -22,8 +22,10 @@ end, 2)
 ---If the time is reached and the future hasn't completed yet, it will short circuit the future
 ---NOTE: the future will still be running in libuv, we are just not waiting for it to complete
 ---thats why you should call this on a leaf future only to avoid unexpected results
+---
 ---@param future Future
----@param ms number
+---@param ms integer
+---@param callback function
 M.timeout = a.wrap(function(future, ms, callback)
   -- make sure that the callback isn't called twice, or else the coroutine can be dead
   local done = false
@@ -46,7 +48,7 @@ M.timeout = a.wrap(function(future, ms, callback)
 end, 3)
 
 ---create an async function timer
----@param ms number
+---@param ms integer
 M.timer = function(ms)
   return async(function()
     await(M.sleep(ms))
@@ -54,7 +56,7 @@ M.timer = function(ms)
 end
 
 ---id function that can be awaited
----@param nil ...
+---@param ... any
 ---@return ...
 M.id = async(function(...)
   return ...
@@ -112,7 +114,7 @@ Semaphore.__index = Semaphore
 ---@param initial_permits number: the number of permits that it can give out
 ---@return Semaphore
 function Semaphore.new(initial_permits)
-  vim.validate {
+  vim.validate({
     initial_permits = {
       initial_permits,
       function(n)
@@ -120,7 +122,7 @@ function Semaphore.new(initial_permits)
       end,
       "number greater than 0",
     },
-  }
+  })
 
   return setmetatable({ permits = initial_permits, handles = {} }, Semaphore)
 end
@@ -173,7 +175,7 @@ M.channel.oneshot = function()
   --- sends a value
   local sender = function(...)
     if sent then
-      error "Oneshot channel can only send once"
+      error("Oneshot channel can only send once")
     end
 
     sent = true
@@ -191,7 +193,7 @@ M.channel.oneshot = function()
   --- blocks until a value is received
   local receiver = a.wrap(function(callback)
     if received then
-      error "Oneshot channel can only send one value!"
+      error("Oneshot channel can only send one value!")
     end
 
     if val then
@@ -249,7 +251,7 @@ M.channel.mpsc = function()
   local Sender = {}
 
   function Sender.send(...)
-    deque:pushleft { ... }
+    deque:pushleft({ ... })
     condvar:notify_all()
   end
 
@@ -323,7 +325,7 @@ M.block_on = function(future, timeout)
   end
 
   if not vim.wait(timeout or 2000, check, 20, false) then
-    error "Blocking on future timed out or was interrupted"
+    error("Blocking on future timed out or was interrupted")
   end
 
   return unpack(ret)

@@ -1,4 +1,4 @@
-local Job = require "plenary.job"
+local Job = require("plenary.job")
 
 describe("Job Validation", function()
   it("does not require command when called with array method", function()

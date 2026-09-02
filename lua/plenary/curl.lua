@@ -26,41 +26,50 @@ and returns table:
 see test/plenary/curl_spec.lua for examples.
 
 author = github.com/tami5
-]]
---
+--]]
+
+local uv = vim.uv or vim.loop
 
 local util, parse = {}, {}
 
 -- Helpers --------------------------------------------------
 -------------------------------------------------------------
-local F = require "plenary.functional"
-local J = require "plenary.job"
-local P = require "plenary.path"
-local compat = require "plenary.compat"
+local F = require("plenary.functional")
+local J = require("plenary.job")
+local P = require("plenary.path")
+local compat = require("plenary.compat")
 
 -- Utils ----------------------------------------------------
 -------------------------------------------------------------
 
-util.url_encode = function(str)
+---@param str string|number
+---@return string|number str
+function util.url_encode(str)
   if type(str) ~= "number" then
-    str = str:gsub("\r?\n", "\r\n")
-    str = str:gsub("([^%w%-%.%_%~ ])", function(c)
-      return string.format("%%%02X", c:byte())
-    end)
-    str = str:gsub(" ", "+")
-    return str
-  else
-    return str
+    str = str
+      :gsub("\r?\n", "\r\n")
+      :gsub("([^%w%-%.%_%~ ])", function(c)
+        return ("%%%02X"):format(c:byte())
+      end)
+      :gsub(" ", "+")
   end
+  return str
 end
 
-util.kv_to_list = function(kv, prefix, sep)
-  return compat.flatten(F.kv_map(function(kvp)
+---@param kv table
+---@param sep string
+---@param prefix string
+---@return table list
+function util.kv_to_list(kv, prefix, sep)
+  return compat.flatten(F.kv_map(function(kvp) ---@param kvp string[]
     return { prefix, kvp[1] .. sep .. kvp[2] }
   end, kv))
 end
 
-util.kv_to_str = function(kv, sep, kvsep)
+---@param kv table
+---@param sep? string
+---@param kvsep string
+function util.kv_to_str(kv, sep, kvsep)
   return F.join(
     F.kv_map(function(kvp)
       return kvp[1] .. kvsep .. util.url_encode(kvp[2])
@@ -69,102 +78,90 @@ util.kv_to_str = function(kv, sep, kvsep)
   )
 end
 
-util.gen_dump_path = function()
-  local path
-  local id = string.gsub("xxxx4xxx", "[xy]", function(l)
+function util.gen_dump_path()
+  local id = ("xxxx4xxx"):gsub("[xy]", function(l)
     local v = (l == "x") and math.random(0, 0xf) or math.random(0, 0xb)
-    return string.format("%x", v)
+    return ("%x"):format(v)
   end)
-  if P.path.sep == "\\" then
-    path = string.format("%s\\AppData\\Local\\Temp\\plenary_curl_%s.headers", os.getenv "USERPROFILE", id)
-  else
-    local temp_dir = os.getenv "XDG_RUNTIME_DIR" or "/tmp"
-    path = temp_dir .. "/plenary_curl_" .. id .. ".headers"
-  end
-  return { "-D", path }
+
+  return {
+    "-D",
+    P.path.sep == "\\" and ("%s\\AppData\\Local\\Temp\\plenary_curl_%s.headers"):format(os.getenv("USERPROFILE"), id)
+      or (os.getenv("XDG_RUNTIME_DIR") or "/tmp") .. "/plenary_curl_" .. id .. ".headers",
+  }
 end
 
 -- Parsers ----------------------------------------------------
 ---------------------------------------------------------------
 
-parse.headers = function(t)
-  if not t then
-    return
-  end
-  local upper = function(str)
-    return string.gsub(" " .. str, "%W%l", string.upper):sub(2)
-  end
-  return util.kv_to_list(
-    (function()
-      local normilzed = {}
-      for k, v in pairs(t) do
-        normilzed[upper(k:gsub("_", "%-"))] = v
-      end
-      return normilzed
-    end)(),
-    "-H",
-    ": "
-  )
+---@param str string
+---@return string upper
+local function upper(str)
+  return (" %s"):format(str):gsub("%W%l", string.upper):sub(2)
 end
 
-parse.data_body = function(t)
-  if not t then
-    return
-  end
-  return util.kv_to_list(t, "-d", "=")
+---@param t? table
+---@return table|nil headers
+function parse.headers(t)
+  return t
+      and util.kv_to_list(
+        (function()
+          local normilzed = {}
+          for k, v in pairs(t) do
+            normilzed[upper(k:gsub("_", "%-"))] = v
+          end
+          return normilzed
+        end)(),
+        "-H",
+        ": "
+      )
+    or nil
 end
 
-parse.raw_body = function(xs)
+---@param t? table
+---@return table|nil body
+function parse.data_body(t)
+  return t and util.kv_to_list(t, "-d", "=") or nil
+end
+
+---@param xs? any
+---@return table|nil
+function parse.raw_body(xs)
   if not xs then
     return
   end
-  if type(xs) == "table" then
-    return parse.data_body(xs)
-  else
-    return { "--data-raw", xs }
-  end
+  return type(xs) == "table" and parse.data_body(xs) or { "--data-raw", xs }
 end
 
-parse.form = function(t)
-  if not t then
-    return
-  end
-  return util.kv_to_list(t, "-F", "=")
+---@param t? table
+---@return table|nil form
+function parse.form(t)
+  return t and util.kv_to_list(t, "-F", "=") or nil
 end
 
-parse.curl_query = function(t)
-  if not t then
-    return
-  end
-  return util.kv_to_str(t, "&", "=")
+---@param t? table
+---@return table|nil query
+function parse.curl_query(t)
+  return t and util.kv_to_str(t, "&", "=") or nil
 end
 
-parse.method = function(s)
-  if not s then
-    return
-  end
-  if s ~= "head" then
-    return { "-X", string.upper(s) }
-  else
-    return { "-I" }
-  end
+---@param s? string
+---@return string[]|nil method
+function parse.method(s)
+  return s and (s ~= "head" and { "-X", s:upper() } or { "-I" }) or nil
 end
 
-parse.file = function(p)
-  if not p then
-    return
-  end
-  return { "-d", "@" .. P.expand(P.new(p)) }
+---@return table|nil file
+function parse.file(p)
+  return p and { "-d", "@" .. P.expand(P.new(p)) } or nil
 end
 
-parse.auth = function(xs)
-  if not xs then
-    return
-  end
-  return { "-u", type(xs) == "table" and util.kv_to_str(xs, nil, ":") or xs }
+---@return string[]|nil auth
+function parse.auth(xs)
+  return xs and { "-u", type(xs) == "table" and util.kv_to_str(xs, nil, ":") or xs } or nil
 end
 
-parse.url = function(xs, q)
+function parse.url(xs, q)
   if not xs then
     return
   end
@@ -172,28 +169,26 @@ parse.url = function(xs, q)
   if type(xs) == "string" then
     return q and xs .. "?" .. q or xs
   elseif type(xs) == "table" then
-    error "Low level URL definition is not supported."
+    error("Low level URL definition is not supported.")
   end
 end
 
-parse.accept_header = function(s)
-  if not s then
-    return
-  end
-  return { "-H", "Accept: " .. s }
+---@param s? string
+---@return string[]|nil header
+function parse.accept_header(s)
+  return s and { "-H", "Accept: " .. s } or nil
 end
 
-parse.http_version = function(s)
+---@param s? string
+---@return string[]|nil version
+function parse.http_version(s)
   if not s then
     return
   end
   if s == "HTTP/0.9" or s == "HTTP/1.0" or s == "HTTP/1.1" or s == "HTTP/2" or s == "HTTP/3" then
-    s = s:lower()
-    s = s:gsub("/", "")
-    return { "--" .. s }
-  else
-    error "Unknown HTTP version."
+    return { "--" .. s:lower():gsub("/", "") }
   end
+  error("Unknown HTTP version.")
 end
 
 -- Parse Request -------------------------------------------
@@ -256,7 +251,7 @@ parse.response = function(lines, dump_path, code)
 
   -- Process headers in a single pass
   for _, line in ipairs(headers) do
-    local status_match = line:match "^HTTP/%S*%s+(%d+)"
+    local status_match = line:match("^HTTP/%S*%s+(%d+)")
     if status_match then
       status = tonumber(status_match)
     elseif line ~= "" then
@@ -265,7 +260,7 @@ parse.response = function(lines, dump_path, code)
   end
 
   local body = F.join(lines, "\n")
-  vim.loop.fs_unlink(dump_path)
+  uv.fs_unlink(dump_path)
 
   return {
     status = status or 0,
@@ -301,11 +296,11 @@ local request = function(specs)
       local stderr = vim.inspect(j:stderr_result())
       local message = string.format("%s %s - curl error exit_code=%s stderr=%s", opts.method, opts.url, code, stderr)
       if opts.on_error then
-        return opts.on_error {
+        return opts.on_error({
           message = message,
           stderr = stderr,
           exit = code,
-        }
+        })
       else
         error(message)
       end
@@ -348,12 +343,12 @@ return (function()
     end
   end
   return {
-    get = partial "get",
-    post = partial "post",
-    put = partial "put",
-    head = partial "head",
-    patch = partial "patch",
-    delete = partial "delete",
-    request = partial "request",
+    get = partial("get"),
+    post = partial("post"),
+    put = partial("put"),
+    head = partial("head"),
+    patch = partial("patch"),
+    delete = partial("delete"),
+    request = partial("request"),
   }
 end)()

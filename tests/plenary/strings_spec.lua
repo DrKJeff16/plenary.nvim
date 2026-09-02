@@ -1,17 +1,17 @@
-local strings = require "plenary.strings"
+local strings = require("plenary.strings")
 local eq = assert.are.same
 
 describe("strings", function()
   describe("strdisplaywidth", function()
-    for _, case in ipairs {
+    for _, case in ipairs({
       { str = "abcde", expected = { single = 5, double = 5 } },
       -- This space below is a tab (U+0009)
       { str = "abc	de", expected = { single = 10, double = 10 } },
       { str = "アイウエオ", expected = { single = 10, double = 10 } },
       { str = "├─┤", expected = { single = 3, double = 6 } },
       { str = 123, expected = { single = 3, double = 3 } },
-    } do
-      for _, ambiwidth in ipairs { "single", "double" } do
+    }) do
+      for _, ambiwidth in ipairs({ "single", "double" }) do
         local item = type(case.str) == "string" and '"%s"' or "%s"
         local msg = ("ambiwidth = %s, " .. item .. " -> %d"):format(ambiwidth, case.str, case.expected[ambiwidth])
         local original = vim.o.ambiwidth
@@ -28,12 +28,12 @@ describe("strings", function()
   end)
 
   describe("strcharpart", function()
-    for _, case in ipairs {
+    for _, case in ipairs({
       { args = { "abcde", 2 }, expected = "cde" },
       { args = { "abcde", 2, 2 }, expected = "cd" },
       { args = { "アイウエオ", 2, 2 }, expected = "ウエ" },
       { args = { "├───┤", 2, 2 }, expected = "──" },
-    } do
+    }) do
       local msg = ('("%s", %d, %s) -> "%s"'):format(case.args[1], case.args[2], tostring(case.args[3]), case.expected)
       it("lua: " .. msg, function()
         eq(case.expected, strings.strcharpart(unpack(case.args)))
@@ -45,7 +45,7 @@ describe("strings", function()
   end)
 
   describe("truncate", function()
-    for _, case in ipairs {
+    for _, case in ipairs({
       -- truncations from the right
       { args = { "abcde", 6, nil, 1 }, expected = { single = "abcde", double = "abcde" } },
       { args = { "abcde", 5, nil, 1 }, expected = { single = "abcde", double = "abcde" } },
@@ -115,8 +115,8 @@ describe("strings", function()
       { args = { "├─┤", 4, nil, 0 }, expected = { single = "├─┤", double = "…┤" } },
       { args = { "├─┤", 3, nil, 0 }, expected = { single = "├─┤", double = "…" } },
       { args = { "├─┤", 2, nil, 0 }, expected = { single = "…┤", double = "…" } },
-    } do
-      for _, ambiwidth in ipairs { "single", "double" } do
+    }) do
+      for _, ambiwidth in ipairs({ "single", "double" }) do
         local msg = ("ambiwidth = %s, direction = %s, [%s, %d] -> %s"):format(
           ambiwidth,
           (case.args[4] > 0) and "right" or (case.args[4] < 0) and "left" or "middle",
@@ -135,15 +135,15 @@ describe("strings", function()
   end)
 
   describe("align_str", function()
-    for _, case in ipairs {
+    for _, case in ipairs({
       { args = { "abcde", 8 }, expected = { single = "abcde   ", double = "abcde   " } },
       { args = { "アイウ", 8 }, expected = { single = "アイウ  ", double = "アイウ  " } },
       { args = { "├─┤", 8 }, expected = { single = "├─┤     ", double = "├─┤  " } },
       { args = { "abcde", 8, true }, expected = { single = "   abcde", double = "   abcde" } },
       { args = { "アイウ", 8, true }, expected = { single = "  アイウ", double = "  アイウ" } },
       { args = { "├─┤", 8, true }, expected = { single = "     ├─┤", double = "  ├─┤" } },
-    } do
-      for _, ambiwidth in ipairs { "single", "double" } do
+    }) do
+      for _, ambiwidth in ipairs({ "single", "double" }) do
         local msg = ('ambiwidth = %s, [%s, %d, %s] -> "%s"'):format(
           ambiwidth,
           case.args[1],
@@ -165,7 +165,7 @@ describe("strings", function()
     local function lines(t)
       return table.concat(t, "\n")
     end
-    for _, case in ipairs {
+    for _, case in ipairs({
       {
         msg = "empty string",
         tabstop = 8,
@@ -176,35 +176,35 @@ describe("strings", function()
         msg = "in case tabs are longer than spaces",
         tabstop = 8,
         args = {
-          lines {
+          lines({
             "		<Tab><Tab> -> 13 spaces",
             "     5 spaces -> 0 space",
-          },
+          }),
         },
-        expected = lines {
+        expected = lines({
           "           <Tab><Tab> -> 13 spaces",
           "5 spaces -> 0 space",
-        },
+        }),
       },
       {
         msg = "in case tabs are shorter than spaces",
         tabstop = 2,
         args = {
-          lines {
+          lines({
             "		<Tab><Tab> -> 0 space",
             "     5spaces -> 1 space",
-          },
+          }),
         },
-        expected = lines {
+        expected = lines({
           "<Tab><Tab> -> 0 space",
           " 5spaces -> 1 space",
-        },
+        }),
       },
       {
         msg = "ignores empty lines",
         tabstop = 2,
         args = {
-          lines {
+          lines({
             "",
             "",
             "",
@@ -215,9 +215,9 @@ describe("strings", function()
             "",
             "",
             "",
-          },
+          }),
         },
-        expected = lines {
+        expected = lines({
           "",
           "",
           "",
@@ -228,46 +228,46 @@ describe("strings", function()
           "",
           "",
           "",
-        },
+        }),
       },
       {
         msg = "no indent",
         tabstop = 2,
         args = {
-          lines {
+          lines({
             "	<Tab> -> 2 spaces",
             "Here is no indent.",
             "    4 spaces will remain",
-          },
+          }),
         },
-        expected = lines {
+        expected = lines({
           "  <Tab> -> 2 spaces",
           "Here is no indent.",
           "    4 spaces will remain",
-        },
+        }),
       },
       {
         msg = "leave_indent = 4",
         tabstop = 2,
         args = {
-          lines {
+          lines({
             "	<Tab> -> 6 spaces",
             "0 indent -> 4 spaces",
             "    4 spaces -> 8 spaces",
-          },
+          }),
           4,
         },
-        expected = lines {
+        expected = lines({
           "      <Tab> -> 6 spaces",
           "    0 indent -> 4 spaces",
           "        4 spaces -> 8 spaces",
-        },
+        }),
       },
       {
         msg = "typical usecase: <Tab> to 5 spaces",
         tabstop = 4,
         args = {
-          lines {
+          lines({
             "",
             "		Chapter 1",
             "",
@@ -277,10 +277,10 @@ describe("strings", function()
             "	  Ut enim ad minim veniam, quis nostrud exercitation ullamco",
             "	laboris nisi ut aliquip ex ea commodo consequat.",
             "",
-          },
+          }),
           5,
         },
-        expected = lines {
+        expected = lines({
           "",
           "         Chapter 1",
           "",
@@ -290,9 +290,9 @@ describe("strings", function()
           "       Ut enim ad minim veniam, quis nostrud exercitation ullamco",
           "     laboris nisi ut aliquip ex ea commodo consequat.",
           "",
-        },
+        }),
       },
-    } do
+    }) do
       local msg = ("tabstop = %d, %s"):format(case.tabstop, case.msg)
       it(msg, function()
         local original = vim.bo.tabstop

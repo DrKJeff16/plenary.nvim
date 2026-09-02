@@ -1,4 +1,4 @@
-local util = require "plenary.async.util"
+local util = require("plenary.async.util")
 
 return setmetatable({}, {
   __index = function(t, k)

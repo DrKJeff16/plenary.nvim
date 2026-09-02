@@ -1,15 +1,17 @@
+---@class plenary.Errors
 local M = {}
 
-M.traceback_error = function(s, level)
-  local traceback = debug.traceback()
-  traceback = traceback .. "\n" .. s
-  error(traceback, (level or 1) + 1)
+---@param s string
+---@param level vim.log.levels
+function M.traceback_error(s, level)
+  error(debug.traceback() .. "\n" .. s, (level or 1) + 1)
 end
 
-M.info_error = function(s, func_info, level)
-  local info = debug.getinfo(func_info)
-  info = info .. "\n" .. s
-  error(info, (level or 1) + 1)
+---@param s string
+---@param func_info function
+---@param level vim.log.levels
+function M.info_error(s, func_info, level)
+  error(debug.getinfo(func_info) .. "\n" .. s, (level or 1) + 1)
 end
 
 return M

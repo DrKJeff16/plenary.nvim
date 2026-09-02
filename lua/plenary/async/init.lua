@@ -12,7 +12,7 @@ local lookups = {
   control = "plenary.async.control",
 }
 
-local exports = setmetatable(require "plenary.async.async", {
+local exports = setmetatable(require("plenary.async.async"), {
   __index = function(t, k)
     local require_path = lookups[k]
     if not require_path then

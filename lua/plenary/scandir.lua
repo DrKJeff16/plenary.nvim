@@ -1,13 +1,13 @@
-local Path = require "plenary.path"
+local Path = require("plenary.path")
 local os_sep = Path.path.sep
-local F = require "plenary.functional"
-local compat = require "plenary.compat"
+local F = require("plenary.functional")
+local compat = require("plenary.compat")
 
-local uv = vim.loop
+local uv = vim.uv or vim.loop
 
 local m = {}
 
-local make_gitignore = function(basepath)
+local function make_gitignore(basepath)
   local patterns = {}
   local valid = false
   for _, v in ipairs(basepath) do
@@ -26,13 +26,16 @@ local make_gitignore = function(basepath)
           l = v .. l
         end
         if not (prefix == "" or prefix == "#") then
-          local el = vim.trim(l)
-          el = el:gsub("%-", "%%-")
-          el = el:gsub("%.", "%%.")
-          el = el:gsub("/%*%*/", "/%%w+/")
-          el = el:gsub("%*%*", "")
-          el = el:gsub("%*", "%%w+")
-          el = el:gsub("%?", "%%w")
+          local el = (
+            vim
+              .trim(l)
+              :gsub("%-", "%%-")
+              :gsub("%.", "%%.")
+              :gsub("/%*%*/", "/%%w+/")
+              :gsub("%*%*", "")
+              :gsub("%*", "%%w+")
+              :gsub("%?", "%%w")
+          )
           if el ~= "" then
             table.insert(negated and patterns[v].negated or patterns[v].ignored, el)
           end
@@ -41,8 +44,11 @@ local make_gitignore = function(basepath)
     end
   end
   if not valid then
-    return nil
+    return
   end
+
+  ---@param bp string[]
+  ---@param entry string
   return function(bp, entry)
     for _, v in ipairs(bp) do
       if entry:find(v, 1, true) then
@@ -148,12 +154,13 @@ end
 --   opts.on_insert(entry):           Will be called for each element
 --   opts.silent (bool):              if true will not echo messages that are not accessible
 -- @return array with files
+---@param path string[]|string
 m.scan_dir = function(path, opts)
   opts = opts or {}
 
-  local data = {}
-  local base_paths = compat.flatten { path }
-  local next_dir = compat.flatten { path }
+  local data = {} ---@type string[]
+  local base_paths = compat.flatten({ path }) --[[@as string[]\]]
+  local next_dir = compat.flatten({ path })
 
   local gitignore = opts.respect_gitignore and make_gitignore(base_paths) or nil
   local match_search_pat = opts.search_pattern and gen_search_pat(opts.search_pattern) or nil
@@ -161,7 +168,7 @@ m.scan_dir = function(path, opts)
   for i = #base_paths, 1, -1 do
     if uv.fs_access(base_paths[i], "X") == false then
       if not F.if_nil(opts.silent, false, opts.silent) then
-        print(string.format("%s is not accessible by the current user!", base_paths[i]))
+        print(("%s is not accessible by the current user!"):format(base_paths[i]))
       end
       table.remove(base_paths, i)
     end
@@ -186,27 +193,15 @@ m.scan_dir = function(path, opts)
   return data
 end
 
---- m.scan_dir_async
--- Search directory recursive and asyncronous
--- @param path: string or table
---   string has to be a valid path
---   table has to be a array of valid paths
--- @param opts: table to change behavior
---   opts.hidden (bool):              if true hidden files will be added
---   opts.add_dirs (bool):            if true dirs will also be added to the results
---   opts.only_dirs (bool):           if true only dirs will be added to the results
---   opts.respect_gitignore (bool):   if true will only add files that are not ignored by git
---   opts.depth (int):                depth on how deep the search should go
---   opts.search_pattern (regex):     regex for which files will be added, string, table of strings, or fn(e) -> bool
---   opts.on_insert function(entry):  will be called for each element
---   opts.on_exit function(results):  will be called at the end
---   opts.silent (bool):              if true will not echo messages that are not accessible
-m.scan_dir_async = function(path, opts)
+---Search directory recursive and asyncronous
+---@param path string[]|string
+---@param opts? { hidden?: boolean, add_dirs?: boolean, only_dirs?: boolean, respect_gitignore?: boolean, depth?: integer, search_pattern?: (string[]|string|fun(e: any): boolean), on_insert?: fun(...: any), on_exit?: fun(results: any), silent?: boolean }
+function m.scan_dir_async(path, opts)
   opts = opts or {}
 
   local data = {}
-  local base_paths = compat.flatten { path }
-  local next_dir = compat.flatten { path }
+  local base_paths = compat.flatten({ path })
+  local next_dir = compat.flatten({ path })
   local current_dir = table.remove(next_dir, 1)
 
   -- TODO(conni2461): get gitignore is not async
@@ -218,7 +213,7 @@ m.scan_dir_async = function(path, opts)
   for i = #base_paths, 1, -1 do
     if uv.fs_access(base_paths[i], "X") == false then
       if not F.if_nil(opts.silent, false, opts.silent) then
-        print(string.format("%s is not accessible by the current user!", base_paths[i]))
+        print(("%s is not accessible by the current user!"):format(base_paths[i]))
       end
       table.remove(base_paths, i)
     end
@@ -227,39 +222,40 @@ m.scan_dir_async = function(path, opts)
     return {}
   end
 
-  local read_dir
-  read_dir = function(err, fd)
-    if not err then
-      while true do
-        local name, typ = uv.fs_scandir_next(fd)
-        if name == nil then
-          break
-        end
-        process_item(opts, name, typ, current_dir, next_dir, base_paths, data, gitignore, match_search_pat)
+  ---@param err? string
+  ---@param fd uv.uv_fs_t
+  local function read_dir(err, fd)
+    if err then
+      return
+    end
+
+    while true do
+      local name, typ = uv.fs_scandir_next(fd)
+      if not name then
+        break
       end
-      if #next_dir == 0 then
-        if opts.on_exit then
-          opts.on_exit(data)
-        end
-      else
-        current_dir = table.remove(next_dir, 1)
-        uv.fs_scandir(current_dir, read_dir)
-      end
+      process_item(opts, name, typ, current_dir, next_dir, base_paths, data, gitignore, match_search_pat)
+    end
+    if #next_dir == 0 and opts.on_exit then
+      opts.on_exit(data)
+    else
+      current_dir = table.remove(next_dir, 1)
+      uv.fs_scandir(current_dir, read_dir)
     end
   end
   uv.fs_scandir(current_dir, read_dir)
 end
 
 local gen_permissions = (function()
-  local conv_to_octal = function(nr)
+  ---@param nr integer
+  ---@return integer octal
+  local function conv_to_octal(nr)
     local octal, i = 0, 1
-
     while nr ~= 0 do
       octal = octal + (nr % 8) * i
       nr = math.floor(nr / 8)
       i = i * 10
     end
-
     return octal
   end
 
@@ -267,20 +263,23 @@ local gen_permissions = (function()
   local permissions_tbl = { [0] = "---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx" }
   local bit_tbl = { 4, 2, 1 }
 
+  ---@generic T
+  ---@param cache table<T, string>
+  ---@param mode T
+  ---@return string permissions
   return function(cache, mode)
     if cache[mode] then
       return cache[mode]
     end
 
-    local octal = string.format("%6d", conv_to_octal(mode))
-    local l4 = octal:sub(#octal - 3, -1)
+    local octal = ("%6d"):format(conv_to_octal(mode))
+    local l4 = octal:sub(octal:len() - 3, -1)
     local bit = tonumber(l4:sub(1, 1))
-
-    local result = type_tbl[tonumber(octal:sub(1, 2))] or "-"
-    for i = 2, #l4 do
+    local result = type_tbl[tonumber(octal:sub(1, 2))] or "-" ---@type string
+    for i = 2, l4:len() do
       result = result .. permissions_tbl[tonumber(l4:sub(i, i))]
       if bit - bit_tbl[i - 1] >= 0 then
-        result = result:sub(1, -2) .. (bit_tbl[i - 1] == 1 and "T" or "S")
+        result = result:sub(1, -2) .. (bit_tbl[i - 1] == 1 and "T" or "S") --[[@as string]]
         bit = bit - bit_tbl[i - 1]
       end
     end
@@ -293,34 +292,35 @@ end)()
 local gen_size = (function()
   local size_types = { "", "K", "M", "G", "T", "P", "E", "Z" }
 
+  ---@param size number
+  ---@return string size_str
   return function(size)
     -- TODO(conni2461): If type directory we could just return 4.0K
     for _, v in ipairs(size_types) do
-      if math.abs(size) < 1024.0 then
-        if math.abs(size) > 9 then
-          return string.format("%3d%s", size, v)
-        else
-          return string.format("%3.1f%s", size, v)
-        end
+      if math.abs(size) < 1024 then
+        return math.abs(size) > 9 and ("%3d%s"):format(size, v) or ("%3.1f%s"):format(size, v)
       end
-      size = size / 1024.0
+      size = size / 1024
     end
-    return string.format("%.1f%s", size, "Y")
+    return ("%.1f%s"):format(size, "Y")
   end
 end)()
 
 local gen_date = (function()
-  local current_year = os.date "%Y"
+  local current_year = os.date("%Y")
+  ---@param mtime integer
+  ---@return string date
   return function(mtime)
-    if current_year ~= os.date("%Y", mtime) then
-      return os.date("%b %d  %Y", mtime)
-    end
-    return os.date("%b %d %H:%M", mtime)
+    return current_year ~= os.date("%Y", mtime) and os.date("%b %d  %Y", mtime) or os.date("%b %d %H:%M", mtime)
   end
 end)()
 
 local get_username = (function()
-  local fallback = function(tbl, id)
+  ---@generic T
+  ---@param tbl table<T, string>
+  ---@param id T
+  ---@return T|string res
+  local function fallback(tbl, id)
     if not tbl then
       return id
     end
@@ -332,8 +332,8 @@ local get_username = (function()
   end
 
   if jit and os_sep ~= "\\" then
-    local ffi = require "ffi"
-    ffi.cdef [[
+    local ffi = require("ffi")
+    ffi.cdef([[
       typedef unsigned int __uid_t;
       typedef __uid_t uid_t;
       typedef unsigned int __gid_t;
@@ -350,36 +350,31 @@ local get_username = (function()
       } passwd;
 
       passwd *getpwuid(uid_t uid);
-    ]]
+    ]])
 
-    local ffi_func = function(tbl, id)
+    ---@generic T
+    ---@param tbl table<T, string>
+    ---@param id T
+    local function ffi_func(tbl, id)
       if tbl[id] then
         return tbl[id]
       end
       local struct = ffi.C.getpwuid(id)
-      local name
-      if struct == nil then
-        name = tostring(id)
-      else
-        name = ffi.string(struct.pw_name)
-      end
+      local name = struct and ffi.string(struct.pw_name) or tostring(id)
       tbl[id] = name
       return name
     end
-
-    local ok = pcall(ffi_func, {}, 1000)
-    if ok then
-      return ffi_func
-    else
-      return fallback
-    end
-  else
-    return fallback
+    return (pcall(ffi_func, {}, 1000)) and ffi_func or fallback
   end
+  return fallback
 end)()
 
 local get_groupname = (function()
-  local fallback = function(tbl, id)
+  ---@generic T, V
+  ---@param tbl table<T, V>
+  ---@param id T
+  ---@return T|V res
+  local function fallback(tbl, id)
     if not tbl then
       return id
     end
@@ -391,8 +386,8 @@ local get_groupname = (function()
   end
 
   if jit and os_sep ~= "\\" then
-    local ffi = require "ffi"
-    ffi.cdef [[
+    local ffi = require("ffi")
+    ffi.cdef([[
       typedef unsigned int __gid_t;
       typedef __gid_t gid_t;
 
@@ -403,34 +398,30 @@ local get_groupname = (function()
         char **gr_mem;
       } group;
       group *getgrgid(gid_t gid);
-    ]]
+    ]])
 
-    local ffi_func = function(tbl, id)
+    ---@generic T, V
+    ---@param tbl table<T, V>
+    ---@param id T
+    ---@return string res
+    local function ffi_func(tbl, id)
       if tbl[id] then
         return tbl[id]
       end
+
       local struct = ffi.C.getgrgid(id)
-      local name
-      if struct == nil then
-        name = tostring(id)
-      else
-        name = ffi.string(struct.gr_name)
-      end
+      local name = struct and ffi.string(struct.gr_name) or tostring(id)
       tbl[id] = name
       return name
     end
-    local ok = pcall(ffi_func, {}, 1000)
-    if ok then
-      return ffi_func
-    else
-      return fallback
-    end
-  else
-    return fallback
+    return (pcall(ffi_func, {}, 1000)) and ffi_func or fallback
   end
+  return fallback
 end)()
 
-local get_max_len = function(tbl)
+---@param tbl table<string|integer, table>
+---@return integer max_len
+local function get_max_len(tbl)
   if not tbl then
     return 0
   end
@@ -443,7 +434,9 @@ local get_max_len = function(tbl)
   return max_len
 end
 
-local gen_ls = function(data, path, opts)
+---@param data string[]
+---@param path string
+local function gen_ls(data, path, opts)
   if not data or #data == 0 then
     return {}, {}
   end
@@ -457,13 +450,12 @@ local gen_ls = function(data, path, opts)
       if resolved:sub(1, #path) == path then
         resolved = resolved:sub(#path + 2, -1)
       end
-      return string.format("%s -> %s", file, resolved)
+      return ("%s -> %s"):format(file, resolved)
     end
     return file
   end
 
   local results, sections = {}, {}
-
   local users_tbl = os_sep ~= "\\" and {} or nil
   local groups_tbl = os_sep ~= "\\" and {} or nil
 
@@ -480,7 +472,6 @@ local gen_ls = function(data, path, opts)
   local insert_in_results = (function()
     if not users_tbl and not groups_tbl then
       local section_spacing_tbl = { [5] = 2, [6] = 0 }
-
       return function(...)
         local args = { ... }
         local section = {
@@ -495,46 +486,34 @@ local gen_ls = function(data, path, opts)
           cur_index = end_index + v
         end
         table.insert(sections, section)
-        table.insert(
-          results,
-          string.format("%10s %5s  %s  %s", args[1], args[2], args[5], check_link(args[1], args[6]))
-        )
+        table.insert(results, ("%10s %5s  %s  %s"):format(args[1], args[2], args[5], check_link(args[1], args[6])))
       end
-    else
-      local max_user_len = get_max_len(users_tbl)
-      local max_group_len = get_max_len(groups_tbl)
+    end
 
-      local section_spacing_tbl = {
-        [3] = { max = max_user_len, add = 1 },
-        [4] = { max = max_group_len, add = 2 },
-        [5] = { add = 2 },
-        [6] = { add = 0 },
+    local max_user_len = get_max_len(users_tbl)
+    local max_group_len = get_max_len(groups_tbl)
+    local section_spacing_tbl = {
+      [3] = { max = max_user_len, add = 1 },
+      [4] = { max = max_group_len, add = 2 },
+      [5] = { add = 2 },
+      [6] = { add = 0 },
+    }
+    local fmt_str = "%10s %5s %-" .. max_user_len .. "s %-" .. max_group_len .. "s  %s  %s"
+    return function(...)
+      local args = { ... }
+      local section = {
+        { start_index = 01, end_index = 11 }, -- permissions, hardcoded indexes
+        { start_index = 12, end_index = 17 }, -- size, hardcoded indexes
       }
-      local fmt_str = "%10s %5s %-" .. max_user_len .. "s %-" .. max_group_len .. "s  %s  %s"
-
-      return function(...)
-        local args = { ... }
-        local section = {
-          { start_index = 01, end_index = 11 }, -- permissions, hardcoded indexes
-          { start_index = 12, end_index = 17 }, -- size, hardcoded indexes
-        }
-        local cur_index = 18
-        for k = 3, 6 do
-          local v = section_spacing_tbl[k]
-          local end_index = cur_index + #args[k]
-          table.insert(section, { start_index = cur_index, end_index = end_index })
-          if v.max then
-            cur_index = cur_index + v.max + v.add
-          else
-            cur_index = end_index + v.add
-          end
-        end
-        table.insert(sections, section)
-        table.insert(
-          results,
-          string.format(fmt_str, args[1], args[2], args[3], args[4], args[5], check_link(args[1], args[6]))
-        )
+      local cur_index = 18
+      for k = 3, 6 do
+        local v = section_spacing_tbl[k]
+        local end_index = cur_index + #args[k]
+        table.insert(section, { start_index = cur_index, end_index = end_index })
+        cur_index = v.max and (cur_index + v.max + v.add) or (end_index + v.add)
       end
+      table.insert(sections, section)
+      table.insert(results, fmt_str:format(args[1], args[2], args[3], args[4], args[5], check_link(args[1], args[6])))
     end
   end)()
 
@@ -565,49 +544,30 @@ local gen_ls = function(data, path, opts)
       end
     end
     return sorted_results, sorted_sections
-  else
-    return results, sections
   end
+  return results, sections
 end
 
---- m.ls
 -- List directory contents. Will always apply --long option.  Use scan_dir for without --long
--- @param path: string
---   string has to be a valid path
--- @param opts: table to change behavior
---   opts.hidden (bool):                  if true hidden files will be added
---   opts.add_dirs (bool):                if true dirs will also be added to the results, default: true
---   opts.respect_gitignore (bool):       if true will only add files that are not ignored by git
---   opts.depth (int):                    depth on how deep the search should go, default: 1
---   opts.group_directories_first (bool): same as real ls
--- @return array with formatted output
-m.ls = function(path, opts)
+---@param path string
+---@param opts? { hidden: boolean, add_dirs?: boolean, respect_gitignore: boolean, depth?: integer, group_directories_first: boolean }
+---@return table
+function m.ls(path, opts)
   opts = opts or {}
   opts.depth = opts.depth or 1
   opts.add_dirs = opts.add_dirs or true
-  local data = m.scan_dir(path, opts)
-
-  return gen_ls(data, path, opts)
+  return (gen_ls(m.scan_dir(path, opts), path, opts))
 end
 
---- m.ls_async
--- List directory contents. Will always apply --long option. Use scan_dir for without --long
--- @param path: string
---   string has to be a valid path
--- @param opts: table to change behavior
---   opts.hidden (bool):                  if true hidden files will be added
---   opts.add_dirs (bool):                if true dirs will also be added to the results, default: true
---   opts.respect_gitignore (bool):       if true will only add files that are not ignored by git
---   opts.depth (int):                    depth on how deep the search should go, default: 1
---   opts.group_directories_first (bool): same as real ls
---   opts.on_exit function(results):      will be called at the end (required)
-m.ls_async = function(path, opts)
+---List directory contents. Will always apply --long option. Use scan_dir for without --long
+---@param path string
+---@param opts? { hidden: boolean, add_dirs?: boolean, respect_gitignore: boolean, depth?: integer, group_directories_first: boolean, on_exit: fun(...: any) }
+function m.ls_async(path, opts)
   opts = opts or {}
   opts.depth = opts.depth or 1
   opts.add_dirs = opts.add_dirs or true
 
   local opts_copy = vim.deepcopy(opts)
-
   opts_copy.on_exit = function(data)
     if opts.on_exit then
       opts.on_exit(gen_ls(data, path, opts_copy))

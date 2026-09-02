@@ -1,5 +1,8 @@
+---@class plenary.Functional
 local f = {}
 
+---@param t table
+---@return { k: string, v: any }[] pairs
 function f.kv_pairs(t)
   local results = {}
   for k, v in pairs(t) do
@@ -8,14 +11,27 @@ function f.kv_pairs(t)
   return results
 end
 
+---@generic T
+---@param fun fun(value: T): any
+---@param t T
+---@return table
 function f.kv_map(fun, t)
   return vim.tbl_map(fun, f.kv_pairs(t))
 end
 
+---@param array any[]
+---@param sep string
+---@return string str
 function f.join(array, sep)
   return table.concat(vim.tbl_map(tostring, array), sep)
 end
 
+---@generic T
+---@param fn fun(a: any, ...: any): any
+---@param n integer
+---@param a T
+---@param ... any
+---@return fun(...: any): fun(a: any, ...: any)
 local function bind_n(fn, n, a, ...)
   if n == 0 then
     return fn
@@ -25,10 +41,16 @@ local function bind_n(fn, n, a, ...)
   end, n - 1, ...)
 end
 
+---@param fun function
+---@param ... any
+---@return fun(...: any): fun(a: any, ...: any)
 function f.partial(fun, ...)
   return bind_n(fun, select("#", ...), ...)
 end
 
+---@param fun fun(k: string|integer, v: any): boolean
+---@param iterable table
+---@return boolean any
 function f.any(fun, iterable)
   for k, v in pairs(iterable) do
     if fun(k, v) then
@@ -39,6 +61,9 @@ function f.any(fun, iterable)
   return false
 end
 
+---@param fun fun(k: string|integer, v: any): boolean
+---@param iterable table
+---@return boolean all
 function f.all(fun, iterable)
   for k, v in pairs(iterable) do
     if not fun(k, v) then
@@ -49,14 +74,17 @@ function f.all(fun, iterable)
   return true
 end
 
+---@generic T, V
+---@param val any
+---@param was_nil T
+---@param was_not_nil V
+---@return T|V res
 function f.if_nil(val, was_nil, was_not_nil)
-  if val == nil then
-    return was_nil
-  else
-    return was_not_nil
-  end
+  return val == nil and was_nil or was_not_nil
 end
 
+---@param n integer
+---@return fun(...: any): x: any
 function f.select_only(n)
   return function(...)
     local x = select(n, ...)
@@ -68,6 +96,8 @@ f.first = f.select_only(1)
 f.second = f.select_only(2)
 f.third = f.select_only(3)
 
+---@param ... any
+---@return any x
 function f.last(...)
   local length = select("#", ...)
   local x = select(length, ...)

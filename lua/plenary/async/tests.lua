@@ -1,4 +1,4 @@
-local util = require "plenary.async.util"
+local util = require("plenary.async.util")
 
 local M = {}
 

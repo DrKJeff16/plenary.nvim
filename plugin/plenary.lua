@@ -7,5 +7,5 @@ vim.api.nvim_create_user_command("PlenaryBustedDirectory", function(args)
 end, { nargs = "+", complete = "file" })
 
 vim.keymap.set("n", "<Plug>PlenaryTestFile", function()
-  require("plenary.test_harness").test_file(vim.fn.expand "%:p")
+  require("plenary.test_harness").test_file(vim.fn.expand("%:p"))
 end)

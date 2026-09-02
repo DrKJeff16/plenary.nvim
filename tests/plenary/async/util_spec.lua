@@ -28,13 +28,13 @@ describe("async await util", function()
   describe("protect", function()
     a.it("should be able to protect a non-leaf future", function()
       local nonleaf = function()
-        error "This should error"
+        error("This should error")
         return "return"
       end
 
       local stat, ret = pcall(nonleaf)
       eq(false, stat)
-      assert(ret:match "This should error")
+      assert(ret:match("This should error"))
     end)
 
     a.it("should be able to protect a non-leaf future that doesnt fail", function()

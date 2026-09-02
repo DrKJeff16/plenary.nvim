@@ -7,9 +7,9 @@
 -- This library is free software; you can redistribute it and/or modify it
 -- under the terms of the MIT license. See LICENSE for details.
 
-local Path = require "plenary.path"
+local Path = require("plenary.path")
 
-local p_debug = vim.fn.getenv "DEBUG_PLENARY"
+local p_debug = vim.fn.getenv("DEBUG_PLENARY")
 if p_debug == vim.NIL then
   p_debug = false
 end
@@ -64,7 +64,7 @@ local default_config = {
     local nameupper = mode_name:upper()
     local lineinfo = src_path .. ":" .. src_line
     if is_console then
-      return string.format("[%-6s%s] %s: %s", nameupper, os.date "%H:%M:%S", lineinfo, msg)
+      return string.format("[%-6s%s] %s: %s", nameupper, os.date("%H:%M:%S"), lineinfo, msg)
     else
       return string.format("[%-6s%s] %s: %s\n", nameupper, os.date(), lineinfo, msg)
     end
@@ -152,7 +152,7 @@ log.new = function(config, standalone)
         end
 
         if config.highlights and level_config.hl then
-          vim.cmd "echohl NONE"
+          vim.cmd("echohl NONE")
         end
       end
       if config.use_console == "sync" and not vim.in_fast_event() then
@@ -166,7 +166,7 @@ log.new = function(config, standalone)
     if config.use_file then
       local outfile_parent_path = Path:new(outfile):parent()
       if not outfile_parent_path:exists() then
-        outfile_parent_path:mkdir { parents = true }
+        outfile_parent_path:mkdir({ parents = true })
       end
       local fp = assert(io.open(outfile, "a"))
       local str = config.fmt_msg(false, level_config.name, src_path, src_line, msg)

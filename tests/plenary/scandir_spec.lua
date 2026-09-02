@@ -1,6 +1,5 @@
-local scan = require "plenary.scandir"
-local mock = require "luassert.mock"
-local stub = require "luassert.stub"
+local scan = require("plenary.scandir")
+local stub = require("luassert.stub")
 local eq = assert.are.same
 
 local contains = function(tbl, str)
@@ -24,7 +23,7 @@ end
 describe("scandir", function()
   describe("can list all files recursive", function()
     it("with cwd", function()
-      local dirs = scan.scan_dir "."
+      local dirs = scan.scan_dir(".")
       eq("table", type(dirs))
       eq(true, contains(dirs, "./README.md"))
       eq(true, contains(dirs, "./LICENSE"))
@@ -48,7 +47,7 @@ describe("scandir", function()
     end)
 
     it("with multiple paths", function()
-      local dirs = scan.scan_dir { "./lua", "./tests" }
+      local dirs = scan.scan_dir({ "./lua", "./tests" })
       eq("table", type(dirs))
       eq(true, contains(dirs, "./lua/say.lua"))
       eq(true, contains(dirs, "./lua/plenary/job.lua"))
@@ -115,9 +114,9 @@ describe("scandir", function()
     end)
 
     it("with respect_gitignore", function()
-      vim.cmd ":silent !touch lua/test.so"
+      vim.cmd(":silent !touch lua/test.so")
       local dirs = scan.scan_dir(".", { respect_gitignore = true })
-      vim.cmd ":silent !rm lua/test.so"
+      vim.cmd(":silent !rm lua/test.so")
       eq("table", type(dirs))
       eq(true, contains(dirs, "./README.md"))
       eq(true, contains(dirs, "./LICENSE"))
@@ -140,7 +139,7 @@ describe("scandir", function()
     it("with callback search pattern", function()
       local dirs = scan.scan_dir(".", {
         search_pattern = function(entry)
-          return entry:match "filetype"
+          return entry:match("filetype")
         end,
       })
       eq("table", type(dirs))
@@ -154,14 +153,14 @@ describe("scandir", function()
   end)
 
   describe("gitignore", function()
-    local Path = require "plenary.path"
+    local Path = require("plenary.path")
     local mock_path, mock_gitignore
     before_each(function()
       mock_path = {
         exists = stub.new().returns(true),
         iter = function()
           local i = 0
-          local n = table.getn(mock_gitignore)
+          local n = #mock_gitignore
           return function()
             i = i + 1
             if i <= n then
@@ -179,27 +178,27 @@ describe("scandir", function()
     describe("ignores path", function()
       it("when path matches pattern exactly", function()
         mock_gitignore = { "ignored.txt" }
-        local should_add = scan.__make_gitignore { "path" }
+        local should_add = scan.__make_gitignore({ "path" })
         eq(false, should_add({ "path" }, "./path/ignored.txt"))
       end)
       it("when path matches * pattern", function()
         mock_gitignore = { "*.txt" }
-        local should_add = scan.__make_gitignore { "path" }
+        local should_add = scan.__make_gitignore({ "path" })
         eq(false, should_add({ "path" }, "./path/dir/ignored.txt"))
       end)
       it("when path matches leading ** pattern", function()
         mock_gitignore = { "**/ignored.txt" }
-        local should_add = scan.__make_gitignore { "path" }
+        local should_add = scan.__make_gitignore({ "path" })
         eq(false, should_add({ "path" }, "./path/dir/subdir/ignored.txt"))
       end)
       it("when path matches trailing ** pattern", function()
         mock_gitignore = { "/dir/**" }
-        local should_add = scan.__make_gitignore { "path" }
+        local should_add = scan.__make_gitignore({ "path" })
         eq(false, should_add({ "path" }, "./path/dir/subdir/ignored.txt"))
       end)
       it("when path matches ? pattern", function()
         mock_gitignore = { "ignore?.txt" }
-        local should_add = scan.__make_gitignore { "path" }
+        local should_add = scan.__make_gitignore({ "path" })
         eq(false, should_add({ "path" }, "./path/ignored.txt"))
       end)
     end)
@@ -207,12 +206,12 @@ describe("scandir", function()
     describe("does not ignore path", function()
       it("when path does not match", function()
         mock_gitignore = { "ignored.txt" }
-        local should_add = scan.__make_gitignore { "path" }
+        local should_add = scan.__make_gitignore({ "path" })
         eq(true, should_add({ "path" }, "./path/ok.txt"))
       end)
       it("when path is negated", function()
         mock_gitignore = { "*.txt", "!ok.txt" }
-        local should_add = scan.__make_gitignore { "path" }
+        local should_add = scan.__make_gitignore({ "path" })
         eq(true, should_add({ "path" }, "./path/ok.txt"))
       end)
     end)
@@ -220,7 +219,7 @@ describe("scandir", function()
 
   describe("ls", function()
     it("works for cwd", function()
-      local dirs = scan.ls "."
+      local dirs = scan.ls(".")
       eq("table", type(dirs))
       eq(true, contains_match(dirs, "LICENSE"))
       eq(true, contains_match(dirs, "README.md"))
@@ -229,7 +228,7 @@ describe("scandir", function()
     end)
 
     it("works for another directory", function()
-      local dirs = scan.ls "./lua"
+      local dirs = scan.ls("./lua")
       eq("table", type(dirs))
       eq(true, contains_match(dirs, "luassert"))
       eq(true, contains_match(dirs, "plenary"))

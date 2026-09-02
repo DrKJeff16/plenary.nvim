@@ -102,7 +102,7 @@ function M.json_strip_comments(jsonString, options)
             result = result .. slice(jsonString, offset, lastComma - 1) .. slice(jsonString, lastComma + 1, i)
             offset = i + 1
             lastComma = 0
-          elseif currentCharacter:match "%S" then
+          elseif currentCharacter:match("%S") then
             lastComma = 0
           end
         end

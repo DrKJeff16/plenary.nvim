@@ -1,17 +1,13 @@
-local m = {}
+---@class plenary.Compat
+local M = {}
 
-m.flatten = (function()
-  if vim.fn.has "nvim-0.11" == 1 then
-    return function(t)
-      return vim.iter(t):flatten():totable()
-    end
-  else
-    return function(t)
-      return vim.tbl_flatten(t)
-    end
-  end
-end)()
+---@param t table
+---@return table flattened_tbl
+function M.flatten(t)
+  ---@diagnostic disable-next-line:deprecated
+  return vim.fn.has("nvim-0.11") == 1 and vim.iter(t):flatten():totable() or vim.tbl_flatten(t)
+end
 
-m.islist = vim.islist or vim.tbl_islist
+M.islist = vim.islist or vim.tbl_islist
 
-return m
+return M

@@ -12,11 +12,11 @@ M.strdisplaywidth = (function()
   end
 
   if jit and path.sep ~= [[\]] then
-    local ffi = require "ffi"
-    ffi.cdef [[
+    local ffi = require("ffi")
+    ffi.cdef([[
       typedef unsigned char char_u;
       int linetabsize_col(int startcol, char_u *s);
-    ]]
+    ]])
 
     local ffi_func = function(str, col)
       str = tostring(str)
@@ -46,11 +46,11 @@ M.strcharpart = (function()
   end
 
   if jit and path.sep ~= [[\]] then
-    local ffi = require "ffi"
-    ffi.cdef [[
+    local ffi = require("ffi")
+    ffi.cdef([[
       typedef unsigned char char_u;
       int utf_ptr2len(const char_u *const p);
-    ]]
+    ]])
 
     local function utf_ptr2len(str)
       local c_str = ffi.new("char[?]", #str + 1)
@@ -163,11 +163,11 @@ M.dedent = function(str, leave_indent)
   -- Check each line and detect the minimum indent.
   local indent
   local info = {}
-  for line in str:gmatch "[^\n]*\n?" do
+  for line in str:gmatch("[^\n]*\n?") do
     -- It matches '' for the last line.
     if line ~= "" then
       local chars, width
-      local line_indent = line:match "^[ \t]+"
+      local line_indent = line:match("^[ \t]+")
       if line_indent then
         chars = #line_indent
         width = M.strdisplaywidth(line_indent)

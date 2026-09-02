@@ -1,4 +1,4 @@
-local Job = require "plenary.job"
+local Job = require("plenary.job")
 
 local Timing = {}
 
@@ -26,9 +26,9 @@ describe("Async test", function()
     vim.defer_fn(function()
       coroutine.resume(co)
     end, 200)
-    timing:log "before"
+    timing:log("before")
     coroutine.yield()
-    timing:log "after"
+    timing:log("after")
     timing:check("before", "after", 0.1)
   end)
 
@@ -55,16 +55,16 @@ describe("Async test", function()
         timing:log(data)
       end,
       on_exit = function(_, exit_status)
-        timing:log "exit"
+        timing:log("exit")
         --This is required so that the rest of the test will run in a proper context
         vim.schedule(function()
           coroutine.resume(co, exit_status)
         end)
       end,
     }):start()
-    timing:log "job started"
+    timing:log("job started")
     local exit_status = coroutine.yield()
-    timing:log "job finished"
+    timing:log("job finished")
     assert.are.equal(exit_status, 42)
 
     timing:check("job started", "job finished", 0.3)

@@ -1,11 +1,11 @@
-local popup = require "plenary.popup"
+local popup = require("plenary.popup")
 
 local eq = assert.are.same
 
 describe("plenary.popup", function()
   before_each(function()
-    vim.cmd [[highlight PopupColor1 ctermbg=lightblue guibg=lightblue]]
-    vim.cmd [[highlight PopupColor2 ctermbg=lightcyan guibg=lightcyan]]
+    vim.cmd([[highlight PopupColor1 ctermbg=lightblue guibg=lightblue]])
+    vim.cmd([[highlight PopupColor2 ctermbg=lightcyan guibg=lightcyan]])
   end)
 
   -- TODO: Probably want to clear all the popups between iterations
@@ -40,7 +40,7 @@ describe("plenary.popup", function()
       highlight = "PopupColor1",
     })
 
-    eq("Normal:PopupColor1,EndOfBuffer:PopupColor1", vim.api.nvim_win_get_option(win_id, "winhl"))
+    eq("Normal:PopupColor1,EndOfBuffer:PopupColor1", vim.api.nvim_get_option_value("winhl", { win = win_id }))
   end)
 
   it("can create a border", function()
@@ -64,7 +64,7 @@ describe("plenary.popup", function()
     })
 
     local border_win_id = opts.border.win_id
-    eq("Normal:PopupColor2", vim.api.nvim_win_get_option(border_win_id, "winhl"))
+    eq("Normal:PopupColor2", vim.api.nvim_get_option_value("winhl", { win = border_win_id }))
   end)
 
   it("can ignore border highlight with no border", function()
@@ -102,7 +102,7 @@ describe("plenary.popup", function()
   end)
 
   describe("borderchars", function()
-    local test_border = function(name, borderchars, expected)
+    local function test_border(name, borderchars, expected)
       it(name, function()
         local _, config = popup.create("all the plus signs", {
           line = 8,
@@ -153,7 +153,7 @@ describe("plenary.popup", function()
         border = { 1, 1, 1, 1 },
         enter = true,
         cursorline = true,
-        callback = function(win_id, sel)
+        callback = function(_, sel)
           print(sel)
         end,
       })

@@ -1,4 +1,4 @@
-local curl = require "plenary.curl"
+local curl = require("plenary.curl")
 local eq = assert.are.same
 local incl = function(p, s)
   return (nil ~= string.find(s, p))
@@ -9,11 +9,11 @@ describe("CURL Wrapper:", function()
     it("sends and returns table.", function()
       eq(
         "table",
-        type(curl.request {
+        type(curl.request({
           url = "https://postman-echo.com/get",
           method = "get",
           accept = "application/json",
-        })
+        }))
       )
     end)
 
@@ -29,10 +29,10 @@ describe("CURL Wrapper:", function()
     it("sends and returns table.", function()
       eq(
         "table",
-        type(curl.get {
+        type(curl.get({
           url = "https://postman-echo.com/get",
           accept = "application/json",
-        })
+        }))
       )
     end)
 
@@ -191,7 +191,7 @@ describe("CURL Wrapper:", function()
 
   describe("DELETE", function() ------------------------------------------------
     it("sends delete request", function()
-      local res = curl.delete "https://jsonplaceholder.typicode.com/posts/8"
+      local res = curl.delete("https://jsonplaceholder.typicode.com/posts/8")
       eq(200, res.status)
     end)
   end)

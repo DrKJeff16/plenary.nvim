@@ -1,7 +1,7 @@
-local a = require "plenary.async.async"
-local vararg = require "plenary.vararg"
+local a = require("plenary.async.async")
+local vararg = require("plenary.vararg")
 -- local control = a.control
-local control = require "plenary.async.control"
+local control = require("plenary.async.control")
 local channel = control.channel
 
 local M = {}

@@ -1,18 +1,24 @@
-local Path = require "plenary.path"
+local Path = require("plenary.path")
 
 local os_sep = Path.path.sep
 
+---@class plenary.Filetype
 local filetype = {}
 
+---@class plenary.Filetype.FtTable
+---@field extension table<string, string>
+---@field file_name table<string, string>
+---@field shebang table<string, string>
 local filetype_table = {
   extension = {},
   file_name = {},
   shebang = {},
 }
 
-filetype.add_table = function(new_filetypes)
+---@param new_filetypes plenary.Filetype.FtTable
+function filetype.add_table(new_filetypes)
   local valid_keys = { "extension", "file_name", "shebang" }
-  local new_keys = {}
+  local new_keys = {} ---@type table<string, boolean>
 
   -- Validate keys
   for k, _ in pairs(new_filetypes) do
@@ -39,9 +45,9 @@ filetype.add_table = function(new_filetypes)
   end
 end
 
-filetype.add_file = function(filename)
-  local filetype_files = vim.api.nvim_get_runtime_file(string.format("data/plenary/filetypes/%s.lua", filename), true)
-
+---@param filename string
+function filetype.add_file(filename)
+  local filetype_files = vim.api.nvim_get_runtime_file(("data/plenary/filetypes/%s.lua"):format(filename), true)
   for _, file in ipairs(filetype_files) do
     local ok, msg = pcall(filetype.add_table, dofile(file))
     if not ok then
@@ -51,55 +57,55 @@ filetype.add_file = function(filename)
 end
 
 local filename_regex = "[^" .. os_sep .. "].*"
-filetype._get_extension_parts = function(filename)
-  local current_match = filename:match(filename_regex)
-  local possibilities = {}
+
+---@param filename string
+---@return string[] possibilities
+function filetype._get_extension_parts(filename)
+  local current_match = filename:match(filename_regex) --[[@as string|nil]]
+  local possibilities = {} ---@type string[]
   while current_match do
-    current_match = current_match:match "[^.]%.(.*)"
-    if current_match then
-      table.insert(possibilities, current_match:lower())
-    else
-      return possibilities
+    current_match = current_match:match("[^.]%.(.*)") --[[@as string|nil]]
+    if not current_match then
+      break
     end
+    table.insert(possibilities, current_match:lower())
   end
   return possibilities
 end
 
-filetype._parse_modeline = function(tail)
-  if tail:find "vim:" then
-    return tail:match ".*:ft=([^: ]*):.*$" or ""
-  end
-  return ""
+---@param tail string
+---@return string modeline
+function filetype._parse_modeline(tail)
+  return tail:find("vim:") and (tail:match(".*:ft=([^: ]*):.*$") or "") or ""
 end
 
-filetype._parse_shebang = function(head)
-  if head:sub(1, 2) == "#!" then
-    local match = filetype_table.shebang[head:sub(3, #head)]
-    if match then
-      return match
-    end
+---@param head string
+---@return string match
+function filetype._parse_shebang(head)
+  if head:sub(1, 2) ~= "#!" then
+    return ""
   end
-  return ""
+  local match = filetype_table.shebang[head:sub(3, head:len())] --[[@as string|nil]]
+  return match or ""
 end
 
 local done_adding = false
-local extend_tbl_with_ext_eq_ft_entries = function()
-  if not done_adding then
-    if vim.in_fast_event() then
-      return
-    end
-    local all_valid_filetypes = vim.fn.getcompletion("", "filetype")
-    for _, v in ipairs(all_valid_filetypes) do
-      if not filetype_table.extension[v] then
-        filetype_table.extension[v] = v
-      end
-    end
-    done_adding = true
-    return true
+
+---@return nil|true added
+local function extend_tbl_with_ext_eq_ft_entries()
+  if done_adding or vim.in_fast_event() then
+    return
   end
+  for _, v in ipairs(vim.fn.getcompletion("", "filetype")) do
+    filetype_table.extension[v] = filetype_table.extension[v] or v
+  end
+  done_adding = true
+  return true
 end
 
-filetype.detect_from_extension = function(filepath)
+---@param filepath string
+---@return string match
+function filetype.detect_from_extension(filepath)
   local exts = filetype._get_extension_parts(filepath)
   for _, ext in ipairs(exts) do
     local match = ext and filetype_table.extension[ext]
@@ -118,51 +124,48 @@ filetype.detect_from_extension = function(filepath)
   return ""
 end
 
-filetype.detect_from_name = function(filepath)
-  if filepath then
-    filepath = filepath:lower()
-    local split_path = vim.split(filepath, os_sep, true)
-    local fname = split_path[#split_path]
-    local match = filetype_table.file_name[fname]
-    if match then
-      return match
-    end
+---@param filepath string
+---@return string|nil match
+function filetype.detect_from_name(filepath)
+  if not filepath then
+    return ""
   end
-  return ""
+
+  local split_path = vim.split(filepath:lower(), os_sep, { trimempty = true })
+  local match = filetype_table.file_name[split_path[#split_path]] --[[@as string|nil]]
+  return match or ""
 end
 
-filetype.detect_from_modeline = function(filepath)
+---@param filepath string
+---@return string match
+function filetype.detect_from_modeline(filepath)
   local tail = Path:new(filepath):readbyterange(-256, 256)
   if not tail then
     return ""
   end
   local lines = vim.split(tail, "\n")
   local idx = lines[#lines] ~= "" and #lines or #lines - 1
-  if idx >= 1 then
-    return filetype._parse_modeline(lines[idx])
-  end
+  return idx >= 1 and filetype._parse_modeline(lines[idx]) or ""
 end
 
-filetype.detect_from_shebang = function(filepath)
+---@param filepath string
+---@return string match
+function filetype.detect_from_shebang(filepath)
   local head = Path:new(filepath):readbyterange(0, 256)
-  if not head then
-    return ""
-  end
-  local lines = vim.split(head, "\n")
-  return filetype._parse_shebang(lines[1])
+  return head and filetype._parse_shebang(vim.split(head, "\n")[1]) or ""
 end
 
 --- Detect a filetype from a path.
 ---
----@param opts table: Table with optional keys
----     - fs_access (bool, default=true): Should check a file if it exists
-filetype.detect = function(filepath, opts)
+---`opts` is a table with optional keys:
+---
+--- - `fs_access` (bool, default=`true`) - Should check a file if it exists
+---@param filepath string
+---@param opts { fs_access?: boolean }
+function filetype.detect(filepath, opts)
   opts = opts or {}
   opts.fs_access = opts.fs_access or true
-
-  if type(filepath) ~= string then
-    filepath = tostring(filepath)
-  end
+  filepath = type(filepath) == "string" and filepath or tostring(filepath)
 
   local match = filetype.detect_from_name(filepath)
   if match ~= "" then
@@ -171,26 +174,25 @@ filetype.detect = function(filepath, opts)
 
   match = filetype.detect_from_extension(filepath)
 
-  if opts.fs_access and Path:new(filepath):exists() then
-    if match == "" then
-      match = filetype.detect_from_shebang(filepath)
-      if match ~= "" then
-        return match
-      end
-    end
-
-    if match == "text" or match == "" then
-      match = filetype.detect_from_modeline(filepath)
-      if match ~= "" then
-        return match
-      end
+  if not (opts.fs_access and Path:new(filepath):exists()) then
+    return match
+  end
+  if match == "" then
+    match = filetype.detect_from_shebang(filepath)
+    if match ~= "" then
+      return match
     end
   end
 
-  return match
+  if match == "text" or match == "" then
+    match = filetype.detect_from_modeline(filepath)
+    if match ~= "" then
+      return match
+    end
+  end
 end
 
-filetype.add_file "base"
-filetype.add_file "builtin"
+filetype.add_file("base")
+filetype.add_file("builtin")
 
 return filetype

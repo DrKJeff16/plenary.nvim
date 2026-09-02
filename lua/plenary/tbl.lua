@@ -1,40 +1,45 @@
-local tbl = {}
+---@class plenary.Tbl
+local M = {}
 
-function tbl.apply_defaults(original, defaults)
-  if original == nil then
-    original = {}
-  end
-
-  original = vim.deepcopy(original)
-
+---@generic T: table
+---@param original? T
+---@param defaults table
+---@return T original
+function M.apply_defaults(original, defaults)
+  original = vim.deepcopy(original or {})
   for k, v in pairs(defaults) do
-    if original[k] == nil then
+    if not original[k] then
       original[k] = v
     end
   end
-
   return original
 end
 
-function tbl.pack(...)
+---@param ... any
+---@return table|{ n: integer } packed_tbl
+function M.pack(...)
   return { n = select("#", ...), ... }
 end
 
-function tbl.unpack(t, i, j)
+---@param t table|{ n: integer }
+---@param i? integer
+---@param j? integer
+function M.unpack(t, i, j)
   return unpack(t, i or 1, j or t.n or #t)
 end
 
 ---Freeze a table. A frozen table is not able to be modified.
 ---http://lua-users.org/wiki/ReadOnlyTables
----@param t table
----@return table
-function tbl.freeze(t)
+---@generic T: table
+---@param t T
+---@return T t
+function M.freeze(t)
   return setmetatable({}, {
     __index = t,
     __newindex = function()
-      error "Attempt to modify frozen table"
+      error("Attempt to modify frozen table")
     end,
   })
 end
 
-return tbl
+return M

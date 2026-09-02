@@ -1,23 +1,23 @@
-local Path = require "plenary.path"
-local Job = require "plenary.job"
+local Path = require("plenary.path")
+local Job = require("plenary.job")
 
-local f = require "plenary.functional"
-local log = require "plenary.log"
-local win_float = require "plenary.window.float"
+local f = require("plenary.functional")
+local log = require("plenary.log")
+local win_float = require("plenary.window.float")
 
 local headless = require("plenary.nvim_meta").is_headless
 
-local plenary_dir = vim.fn.fnamemodify(debug.getinfo(1).source:match "@?(.*[/\\])", ":p:h:h:h")
+local plenary_dir = vim.fn.fnamemodify(debug.getinfo(1).source:match("@?(.*[/\\])"), ":p:h:h:h")
 
 local harness = {}
 
 local print_output = vim.schedule_wrap(function(_, ...)
-  for _, v in ipairs { ... } do
+  for _, v in ipairs({ ... }) do
     io.stdout:write(tostring(v))
-    io.stdout:write "\n"
+    io.stdout:write("\n")
   end
 
-  vim.cmd [[mode]]
+  vim.cmd([[mode]])
 end)
 
 local get_nvim_output = function(job_id)
@@ -25,7 +25,7 @@ local get_nvim_output = function(job_id)
     if not vim.api.nvim_buf_is_valid(bufnr) then
       return
     end
-    for _, v in ipairs { ... } do
+    for _, v in ipairs({ ... }) do
       vim.api.nvim_chan_send(job_id, v .. "\r\n")
     end
   end)
@@ -71,7 +71,7 @@ local function test_paths(paths, opts)
     if res.bufnr then
       vim.api.nvim_buf_set_option(res.bufnr, "filetype", "PlenaryTestPopup")
     end
-    vim.cmd "mode"
+    vim.cmd("mode")
   end
 
   local outputter = headless and print_output or get_nvim_output(res.job_id)
@@ -100,7 +100,7 @@ local function test_paths(paths, opts)
     table.insert(args, "-c")
     table.insert(args, string.format('lua require("plenary.busted").run("%s")', p:absolute():gsub("\\", "\\\\")))
 
-    local job = Job:new {
+    local job = Job:new({
       command = opts.nvim_cmd,
       args = args,
 
@@ -123,14 +123,14 @@ local function test_paths(paths, opts)
           outputter(res.bufnr, unpack(j_self:result()))
         end
 
-        vim.cmd "mode"
+        vim.cmd("mode")
       end),
-    }
+    })
     job.nvim_busted_path = p.filename
     return job
   end, paths)
 
-  log.debug "Running..."
+  log.debug("Running...")
   for i, j in ipairs(jobs) do
     outputter(res.bufnr, "Scheduling: " .. j.nvim_busted_path)
     j:start()
@@ -159,9 +159,9 @@ local function test_paths(paths, opts)
 
   if not opts.sequential then
     table.insert(jobs, opts.timeout)
-    log.debug "... Parallel wait"
+    log.debug("... Parallel wait")
     Job.join(unpack(jobs))
-    log.debug "... Completed jobs"
+    log.debug("... Completed jobs")
     table.remove(jobs, table.getn(jobs))
     failure = f.any(function(_, v)
       return v.code ~= 0
@@ -171,20 +171,20 @@ local function test_paths(paths, opts)
 
   if headless then
     if failure then
-      return vim.cmd "1cq"
+      return vim.cmd("1cq")
     end
 
-    return vim.cmd "0cq"
+    return vim.cmd("0cq")
   end
 end
 
 function harness.test_directory(directory, opts)
-  print "Starting..."
+  print("Starting...")
   directory = directory:gsub("\\", "/")
   local paths = harness._find_files_to_run(directory)
 
   -- Paths work strangely on Windows, so lets have abs paths
-  if vim.fn.has "win32" == 1 or vim.fn.has "win64" == 1 then
+  if vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1 then
     paths = vim.tbl_map(function(p)
       return Path:new(directory, p.filename)
     end, paths)
@@ -194,25 +194,25 @@ function harness.test_directory(directory, opts)
 end
 
 function harness.test_file(filepath)
-  test_paths { Path:new(filepath) }
+  test_paths({ Path:new(filepath) })
 end
 
 function harness._find_files_to_run(directory)
   local finder
-  if vim.fn.has "win32" == 1 or vim.fn.has "win64" == 1 then
+  if vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1 then
     -- On windows use powershell Get-ChildItem instead
-    local cmd = vim.fn.executable "pwsh.exe" == 1 and "pwsh" or "powershell"
-    finder = Job:new {
+    local cmd = vim.fn.executable("pwsh.exe") == 1 and "pwsh" or "powershell"
+    finder = Job:new({
       command = cmd,
       args = { "-NoProfile", "-Command", [[Get-ChildItem -Recurse -n -Filter "*_spec.lua"]] },
       cwd = directory,
-    }
+    })
   else
     -- everywhere else use find
-    finder = Job:new {
+    finder = Job:new({
       command = "find",
       args = { directory, "-type", "f", "-name", "*_spec.lua" },
-    }
+    })
   end
 
   return vim.tbl_map(Path.new, finder:sync(vim.env.PLENARY_TEST_TIMEOUT))
@@ -225,7 +225,7 @@ function harness._run_path(test_type, directory)
   local win_id = 0
 
   for _, p in pairs(paths) do
-    print " "
+    print(" ")
     print("Loading Tests For: ", p:absolute(), "\n")
 
     local ok, _ = pcall(function()
@@ -233,12 +233,12 @@ function harness._run_path(test_type, directory)
     end)
 
     if not ok then
-      print "Failed to load file"
+      print("Failed to load file")
     end
   end
 
   harness:run(test_type, bufnr, win_id)
-  vim.cmd "qa!"
+  vim.cmd("qa!")
 
   return paths
 end

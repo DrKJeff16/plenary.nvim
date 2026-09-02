@@ -1,5 +1,5 @@
-local scandir = require "plenary.scandir"
-local Path = require "plenary.path"
+local scandir = require("plenary.scandir")
+local Path = require("plenary.path")
 
 local eq = assert.are.same
 
@@ -22,8 +22,8 @@ describe("plenary.popup", function()
 
   -- Tests to make sure that we're matching both types of requires
   it("should match these kinds of patterns", function()
-    eq(true, matches_any_import [[local x = require "plenary.other"]])
-    eq(true, matches_any_import [[local x = require("plenary.module").something]])
+    eq(true, matches_any_import([[local x = require "plenary.other"]]))
+    eq(true, matches_any_import([[local x = require("plenary.module").something]]))
   end)
 
   it("must not require anything other than Window and Border from plenary", function()

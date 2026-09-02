@@ -18,7 +18,7 @@ describe("async", function()
       saved_arg = arg
     end)
 
-    voided "hello"
+    voided("hello")
 
     assert(stat == 7)
     assert(saved_arg == "hello")
@@ -45,7 +45,7 @@ describe("async", function()
       saved_arg = arg
     end)
 
-    voided "hello"
+    voided("hello")
 
     assert(stat == 7)
     assert(saved_arg == "hello")

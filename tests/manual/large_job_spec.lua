@@ -1,7 +1,7 @@
-require("plenary.reload").reload_module "plenary"
+require("plenary.reload").reload_module("plenary")
 
-local Job = require "plenary.job"
-local profiler = require "plenary.profile.lua_profiler"
+local Job = require("plenary.job")
+local profiler = require("plenary.profile.lua_profiler")
 
 profiler.start()
 
@@ -10,7 +10,7 @@ local finish = nil
 
 local results = {}
 
-local j = Job:new {
+local j = Job:new({
   command = "fdfind",
 
   cwd = "~/plugins/",
@@ -24,7 +24,7 @@ local j = Job:new {
   -- on_exit = vim.schedule_wrap(function()
   --   finish = vim.fn.reltime(start)
   -- end),
-}
+})
 
 pcall(function()
   j:sync(2000, 5)
@@ -32,13 +32,13 @@ end)
 finish = vim.fn.reltime(start)
 
 profiler.stop()
-profiler.report "/home/tj/tmp/temp.txt"
+profiler.report("/home/tj/tmp/temp.txt")
 
 if finish == nil then
-  print "Did not finish :'("
+  print("Did not finish :'(")
 else
   print("finished in:", vim.fn.reltimestr(finish))
 end
 
 collectgarbage()
-print(collectgarbage "count")
+print(collectgarbage("count"))

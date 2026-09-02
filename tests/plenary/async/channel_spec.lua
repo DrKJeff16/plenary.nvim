@@ -14,13 +14,13 @@ describe("channel", function()
         eq("sent value", got)
       end)
 
-      tx "sent value"
+      tx("sent value")
     end)
 
     a.it("should work when tx is used first", function()
       local tx, rx = channel.oneshot()
 
-      tx "sent value"
+      tx("sent value")
 
       local got = rx()
 

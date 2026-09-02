@@ -1,6 +1,6 @@
-local a = require "plenary.async.async"
+local a = require("plenary.async.async")
 local Deque = require("plenary.async.structs").Deque
-local tbl = require "plenary.tbl"
+local tbl = require("plenary.tbl")
 
 local M = {}
 
@@ -59,7 +59,7 @@ Semaphore.__index = Semaphore
 ---@param initial_permits number: the number of permits that it can give out
 ---@return Semaphore
 function Semaphore.new(initial_permits)
-  vim.validate {
+  vim.validate({
     initial_permits = {
       initial_permits,
       function(n)
@@ -67,7 +67,7 @@ function Semaphore.new(initial_permits)
       end,
       "number greater than 0",
     },
-  }
+  })
 
   return setmetatable({ permits = initial_permits, handles = {} }, Semaphore)
 end
@@ -201,7 +201,7 @@ M.channel.mpsc = function()
   local Sender = {}
 
   function Sender.send(...)
-    deque:pushleft { ... }
+    deque:pushleft({ ... })
     condvar:notify_all()
   end
 

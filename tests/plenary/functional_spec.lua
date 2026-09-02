@@ -1,4 +1,4 @@
-local f = require "plenary.functional"
+local f = require("plenary.functional")
 
 describe("functional", function()
   describe("partial", function()

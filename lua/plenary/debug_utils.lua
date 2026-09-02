@@ -1,13 +1,15 @@
-local debug_utils = {}
+---@class plenary.DebugUtils
+local M = {}
 
-function debug_utils.sourced_filepath()
-  local str = debug.getinfo(2, "S").source:sub(2)
-  return str
+---@return string filepath
+function M.sourced_filepath()
+  return debug.getinfo(2, "S").source:sub(2)
 end
 
-function debug_utils.sourced_filename()
-  local str = debug_utils.sourced_filepath()
-  return str:match "^.*/(.*).lua$" or str
+---@return string sourced
+function M.sourced_filename()
+  local str = M.sourced_filepath()
+  return str:match("^.*/(.*).lua$") or str
 end
 
-return debug_utils
+return M

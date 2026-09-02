@@ -42,7 +42,7 @@ describe("condvar", function()
     end
 
     a.run(function()
-      join { first, second, third }
+      join({ first, second, third })
     end)
 
     eq(0, counter)
@@ -80,7 +80,7 @@ describe("condvar", function()
       counter = counter + 1
     end
 
-    run_all { first, second, third }
+    run_all({ first, second, third })
 
     eq(0, counter)
 
@@ -117,7 +117,7 @@ describe("condvar", function()
       counter = counter + 1
     end
 
-    run_all { first, second, third }
+    run_all({ first, second, third })
 
     eq(0, counter)
 

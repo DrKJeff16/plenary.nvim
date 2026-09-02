@@ -1,4 +1,4 @@
-local tbl = require "plenary.tbl"
+local tbl = require("plenary.tbl")
 
 local function should_fail(fun)
   local stat = pcall(fun)

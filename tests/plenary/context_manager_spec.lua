@@ -1,6 +1,6 @@
-local context_manager = require "plenary.context_manager"
-local debug_utils = require "plenary.debug_utils"
-local Path = require "plenary.path"
+local context_manager = require("plenary.context_manager")
+local debug_utils = require("plenary.debug_utils")
+local Path = require("plenary.path")
 
 local with = context_manager.with
 local open = context_manager.open

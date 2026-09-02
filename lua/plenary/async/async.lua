@@ -1,8 +1,8 @@
 local co = coroutine
-local vararg = require "plenary.vararg"
-local errors = require "plenary.errors"
+local vararg = require("plenary.vararg")
+local errors = require("plenary.errors")
 local traceback_error = errors.traceback_error
-local f = require "plenary.functional"
+local f = require("plenary.functional")
 
 local M = {}
 

@@ -20,7 +20,7 @@ function List.new(tbl)
     obj._len = len
     return obj
   end
-  error "List constructor must be called with table argument"
+  error("List constructor must be called with table argument")
 end
 
 --- Checks whether the argument is a List object
@@ -42,7 +42,7 @@ end
 
 -- TODO: Similar to python, use [...] if the table references itself --
 function List:__tostring()
-  local elements = self:join ", "
+  local elements = self:join(", ")
   return "[" .. elements .. "]"
 end
 
@@ -59,7 +59,7 @@ function List:__eq(other)
 end
 
 function List:__mul(other)
-  local result = List.new {}
+  local result = List.new({})
   for i = 1, other do
     result[i] = self
   end
@@ -228,7 +228,7 @@ end
 --- @return List: a list containing all the given elements
 --- @see table.pack
 function List.pack(...)
-  return List.new { ... }
+  return List.new({ ... })
 end
 
 --- Unpacks the elements from this list and returns them
@@ -239,7 +239,7 @@ end
 
 -- Iterator stuff
 
-local Iter = require "plenary.iterators"
+local Iter = require("plenary.iterators")
 
 local itermetatable = getmetatable(Iter:wrap())
 
@@ -280,7 +280,7 @@ end
 ---@param predicate function: The predicate to classify the elements
 ---@return List,List
 local function partition(self, predicate)
-  local list1, list2 = List.new {}, List.new {}
+  local list1, list2 = List.new({}), List.new({})
   for _, v in self do
     if predicate(v) then
       list1:push(v)
@@ -318,7 +318,7 @@ function List:extend(other)
       self:push(v)
     end
   else
-    error "Argument must be an iterator"
+    error("Argument must be an iterator")
   end
 end
 
@@ -378,7 +378,7 @@ end
 --- @param iter table: An iterator object
 --- @return List
 function List.from_iter(iter)
-  local result = List.new {}
+  local result = List.new({})
   for _, v in iter do
     result:push(v)
   end

@@ -1,8 +1,8 @@
 local co = coroutine
-local errors = require "plenary.errors"
+local errors = require("plenary.errors")
 local traceback_error = errors.traceback_error
-local f = require "plenary.functional"
-local tbl = require "plenary.tbl"
+local f = require("plenary.functional")
+local tbl = require("plenary.tbl")
 
 local M = {}
 
@@ -52,7 +52,7 @@ M.wrap = function(func, argc)
   end
 
   if type(argc) ~= "number" and argc ~= "vararg" then
-    traceback_error "expected argc to be a number or string literal 'vararg'"
+    traceback_error("expected argc to be a number or string literal 'vararg'")
   end
 
   return function(...)

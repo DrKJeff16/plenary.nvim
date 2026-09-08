@@ -43,6 +43,7 @@ end
 local is_headless = require("plenary.nvim_meta").is_headless
 
 -- We are shadowing print so people can reliably print messages
+---@param ... any
 print = function(...)
   for _, v in ipairs({ ... }) do
     io.stdout:write(tostring(v))
@@ -55,24 +56,21 @@ end
 ---@class plenary.Busted
 local mod = {}
 
-local results = {} ---@type { errs: { descriptions: string[], msg: string }[], fail: table, pass: table }
+local results = {} ---@type { errs?: { descriptions: string[], msg?: string }[], fail?: table, pass?: table }
 local current_description = {} ---@type string[]
 local current_before_each = {} ---@type table<integer, function[]>
 local current_after_each = {} ---@type table<integer, function[]>
 
 ---@param desc string
 ---@return string[] current_description
-local add_description = function(desc)
+local function add_description(desc)
   table.insert(current_description, desc)
-
-  return vim.deepcopy(current_description)
+  return current_description
 end
 
 ---@return string res
 local function pop_description()
-  local res = current_description[#current_description]
-  current_description[#current_description] = nil
-  return res
+  return table.remove(current_description, #current_description)
 end
 
 local function add_new_each()
@@ -105,11 +103,7 @@ local function call_inner(desc, func)
   return ok, msg, desc_stack
 end
 
-local color_table = {
-  yellow = 33,
-  green = 32,
-  red = 31,
-}
+local color_table = { yellow = 33, green = 32, red = 31 }
 
 ---@param color "green"|"red"|"yellow"
 ---@param str string
@@ -124,7 +118,7 @@ local FAIL = color_string("red", "Fail")
 local PENDING = color_string("yellow", "Pending")
 local HEADER = ("="):rep(40)
 
----@param res { errs: { descriptions: string[], msg: string }[], fail: table, pass: table }
+---@param res { errs?: { descriptions: string[], msg?: string }[], fail?: table, pass?: table }
 function mod.format_results(res)
   print("")
   print(color_string("green", "Success: "), #res.pass)
@@ -145,10 +139,7 @@ function mod.describe(desc, func)
   describe = mod.describe
 
   if not ok then
-    table.insert(results.errs, {
-      descriptions = desc_stack,
-      msg = msg,
-    })
+    table.insert(results.errs, { descriptions = desc_stack, msg = msg })
   end
 end
 
@@ -157,10 +148,7 @@ end
 function mod.inner_describe(desc, func)
   local ok, msg, desc_stack = call_inner(desc, func)
   if not ok then
-    table.insert(results.errs, {
-      descriptions = desc_stack,
-      msg = msg,
-    })
+    table.insert(results.errs, { descriptions = desc_stack, msg = msg })
   end
 end
 
@@ -169,7 +157,8 @@ function mod.before_each(fn)
   table.insert(current_before_each[#current_description], fn)
 end
 
-mod.after_each = function(fn)
+---@param fn function
+function mod.after_each(fn)
   table.insert(current_after_each[#current_description], fn)
 end
 
@@ -180,9 +169,7 @@ end
 ---@param msg string
 ---@param spaces? integer
 local function indent(msg, spaces)
-  spaces = spaces or 4
-
-  local prefix = (" "):rep(spaces)
+  local prefix = (" "):rep(spaces or 4)
   return prefix .. msg:gsub("\n", "\n" .. prefix)
 end
 
@@ -204,10 +191,7 @@ function mod.it(desc, func)
   local ok, msg, desc_stack = call_inner(desc, func)
   run_each(current_after_each)
 
-  local test_result = {
-    descriptions = desc_stack,
-    msg = nil,
-  }
+  local test_result = { descriptions = desc_stack }
 
   -- TODO: We should figure out how to determine whether
   -- and assert failed or whether it was an error...

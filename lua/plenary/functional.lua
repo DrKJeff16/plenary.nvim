@@ -1,8 +1,9 @@
 ---@class plenary.Functional
 local f = {}
 
----@param t table
----@return { k: string, v: any }[] pairs
+---@generic K, V
+---@param t table<K, V>
+---@return { [1]: K, [2]: V }[] pairs
 function f.kv_pairs(t)
   local results = {}
   for k, v in pairs(t) do
@@ -11,10 +12,10 @@ function f.kv_pairs(t)
   return results
 end
 
----@generic T
----@param fun fun(value: T): any
----@param t T
----@return table
+---@generic K, V
+---@param fun fun(value: { [1]: K, [2]: V }): any
+---@param t table<K, V>
+---@return table map
 function f.kv_map(fun, t)
   return vim.tbl_map(fun, f.kv_pairs(t))
 end

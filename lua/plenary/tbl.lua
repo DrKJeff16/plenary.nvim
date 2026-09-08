@@ -2,11 +2,11 @@
 local M = {}
 
 ---@generic T: table
----@param original? T
----@param defaults table
+---@param original? table
+---@param defaults T
 ---@return T original
 function M.apply_defaults(original, defaults)
-  original = vim.deepcopy(original or {})
+  original = original or {}
   for k, v in pairs(defaults) do
     if not original[k] then
       original[k] = v

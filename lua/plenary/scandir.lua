@@ -5,11 +5,13 @@ local compat = require("plenary.compat")
 
 local uv = vim.uv or vim.loop
 
-local m = {}
+---@class plenary.Scandir
+local M = {}
 
+---@param basepath string[]
+---@return (fun(bp: string[], entry: string): res: boolean)|nil|?
 local function make_gitignore(basepath)
-  local patterns = {}
-  local valid = false
+  local patterns, valid = {}, false
   for _, v in ipairs(basepath) do
     local p = Path:new(v .. os_sep .. ".gitignore")
     if p:exists() then
@@ -49,6 +51,7 @@ local function make_gitignore(basepath)
 
   ---@param bp string[]
   ---@param entry string
+  ---@return boolean res
   return function(bp, entry)
     for _, v in ipairs(bp) do
       if entry:find(v, 1, true) then
@@ -71,28 +74,39 @@ local function make_gitignore(basepath)
   end
 end
 -- exposed for testing
-m.__make_gitignore = make_gitignore
+M.__make_gitignore = make_gitignore
 
-local handle_depth = function(base_paths, entry, depth)
+---@param base_paths string[]
+---@param entry string
+---@param depth integer
+---@return string|nil|? entry
+local function handle_depth(base_paths, entry, depth)
   for _, v in ipairs(base_paths) do
     if entry:find(v, 1, true) then
       local cut = entry:sub(#v + 1, -1)
       cut = cut:sub(1, 1) == os_sep and cut:sub(2, -1) or cut
       local _, count = cut:gsub(os_sep, "")
       if depth <= (count + 1) then
-        return nil
+        return
       end
     end
   end
   return entry
 end
 
-local gen_search_pat = function(pattern)
+---@param pattern fun(entry: string): res: boolean
+---@return (fun(entry: string): res: boolean)|nil|? cb
+local function gen_search_pat(pattern)
   if type(pattern) == "string" then
+    ---@param entry string
+    ---@return boolean res
     return function(entry)
-      return entry:match(pattern)
+      return entry:match(pattern) ~= nil
     end
-  elseif type(pattern) == "table" then
+  end
+  if type(pattern) == "table" then
+    ---@param entry string
+    ---@return boolean res
     return function(entry)
       for _, v in ipairs(pattern) do
         if entry:match(v) then
@@ -101,45 +115,46 @@ local gen_search_pat = function(pattern)
       end
       return false
     end
-  elseif type(pattern) == "function" then
+  end
+  if type(pattern) == "function" then
     return pattern
   end
 end
 
-local process_item = function(opts, name, typ, current_dir, next_dir, bp, data, giti, msp)
+---@param opts { hidden?: boolean, add_dirs?: boolean, only_dirs?: boolean, respect_gitignore?: boolean, depth?: integer, search_pattern?: string[]|string|(fun(...: any): boolean), on_insert?: function, silent?: boolean }
+---@param name string
+---@param typ string
+---@param current_dir string
+---@param next_dir table
+---@param bp string[]
+---@param data string[]
+---@param giti? fun(bp: string[], entry: string):(res: boolean)
+---@param msp? fun(entry: string):(res: boolean)
+local function process_item(opts, name, typ, current_dir, next_dir, bp, data, giti, msp)
   if opts.hidden or name:sub(1, 1) ~= "." then
+    local entry ---@type string
     if typ == "directory" then
-      local entry = current_dir .. os_sep .. name
-      if opts.depth then
-        table.insert(next_dir, handle_depth(bp, entry, opts.depth))
-      else
-        table.insert(next_dir, entry)
-      end
-      if opts.add_dirs or opts.only_dirs then
-        if not giti or giti(bp, entry .. "/") then
-          if not msp or msp(entry) then
-            table.insert(data, entry)
-            if opts.on_insert then
-              opts.on_insert(entry, typ)
-            end
-          end
+      entry = current_dir .. os_sep .. name
+      table.insert(next_dir, opts.depth and handle_depth(bp, entry, opts.depth) or entry)
+      if (opts.add_dirs or opts.only_dirs) and (not giti or giti(bp, entry .. "/")) and (not msp or msp(entry)) then
+        table.insert(data, entry)
+        if opts.on_insert then
+          opts.on_insert(entry, typ)
         end
       end
     elseif not opts.only_dirs then
-      local entry = current_dir .. os_sep .. name
-      if not giti or giti(bp, entry) then
-        if not msp or msp(entry) then
-          table.insert(data, entry)
-          if opts.on_insert then
-            opts.on_insert(entry, typ)
-          end
+      entry = current_dir .. os_sep .. name
+      if (not giti or giti(bp, entry)) and (not msp or msp(entry)) then
+        table.insert(data, entry)
+        if opts.on_insert then
+          opts.on_insert(entry, typ)
         end
       end
     end
   end
 end
 
---- m.scan_dir
+--- M.scan_dir
 -- Search directory recursive and syncronous
 -- @param path: string or table
 --   string has to be a valid path
@@ -155,16 +170,15 @@ end
 --   opts.silent (bool):              if true will not echo messages that are not accessible
 -- @return array with files
 ---@param path string[]|string
-m.scan_dir = function(path, opts)
+---@param opts? { hidden?: boolean, add_dirs?: boolean, only_dirs?: boolean, respect_gitignore?: boolean, depth?: integer, search_pattern?: string[]|string|(fun(...: any): boolean), on_insert?: function, silent?: boolean }
+function M.scan_dir(path, opts)
   opts = opts or {}
 
   local data = {} ---@type string[]
   local base_paths = compat.flatten({ path }) --[[@as string[]\]]
-  local next_dir = compat.flatten({ path })
-
+  local next_dir = compat.flatten({ path }) --[[@as string[]\]]
   local gitignore = opts.respect_gitignore and make_gitignore(base_paths) or nil
   local match_search_pat = opts.search_pattern and gen_search_pat(opts.search_pattern) or nil
-
   for i = #base_paths, 1, -1 do
     if uv.fs_access(base_paths[i], "X") == false then
       if not F.if_nil(opts.silent, false, opts.silent) then
@@ -179,11 +193,11 @@ m.scan_dir = function(path, opts)
 
   repeat
     local current_dir = table.remove(next_dir, 1)
-    local fd = uv.fs_scandir(current_dir)
-    if fd then
+    local dir = uv.fs_scandir(current_dir)
+    if dir then
       while true do
-        local name, typ = uv.fs_scandir_next(fd)
-        if name == nil then
+        local name, typ = uv.fs_scandir_next(dir)
+        if not name then
           break
         end
         process_item(opts, name, typ, current_dir, next_dir, base_paths, data, gitignore, match_search_pat)
@@ -196,13 +210,14 @@ end
 ---Search directory recursive and asyncronous
 ---@param path string[]|string
 ---@param opts? { hidden?: boolean, add_dirs?: boolean, only_dirs?: boolean, respect_gitignore?: boolean, depth?: integer, search_pattern?: (string[]|string|fun(e: any): boolean), on_insert?: fun(...: any), on_exit?: fun(results: any), silent?: boolean }
-function m.scan_dir_async(path, opts)
+---@return string[]|nil|? dirs
+function M.scan_dir_async(path, opts)
   opts = opts or {}
 
-  local data = {}
-  local base_paths = compat.flatten({ path })
-  local next_dir = compat.flatten({ path })
-  local current_dir = table.remove(next_dir, 1)
+  local data = {} ---@type string[]
+  local base_paths = compat.flatten({ path }) --[[@as string[]\]]
+  local next_dir = compat.flatten({ path }) --[[@as string[]\]]
+  local current_dir = table.remove(next_dir, 1) --[[@as string]]
 
   -- TODO(conni2461): get gitignore is not async
   local gitignore = opts.respect_gitignore and make_gitignore(base_paths) or nil
@@ -223,14 +238,14 @@ function m.scan_dir_async(path, opts)
   end
 
   ---@param err? string
-  ---@param fd uv.uv_fs_t
-  local function read_dir(err, fd)
+  ---@param success uv.uv_fs_t
+  local function read_dir(err, success)
     if err then
       return
     end
 
     while true do
-      local name, typ = uv.fs_scandir_next(fd)
+      local name, typ = uv.fs_scandir_next(success)
       if not name then
         break
       end
@@ -239,7 +254,7 @@ function m.scan_dir_async(path, opts)
     if #next_dir == 0 and opts.on_exit then
       opts.on_exit(data)
     else
-      current_dir = table.remove(next_dir, 1)
+      current_dir = table.remove(next_dir, 1) --[[@as string]]
       uv.fs_scandir(current_dir, read_dir)
     end
   end
@@ -289,22 +304,18 @@ local gen_permissions = (function()
   end
 end)()
 
-local gen_size = (function()
-  local size_types = { "", "K", "M", "G", "T", "P", "E", "Z" }
-
-  ---@param size number
-  ---@return string size_str
-  return function(size)
-    -- TODO(conni2461): If type directory we could just return 4.0K
-    for _, v in ipairs(size_types) do
-      if math.abs(size) < 1024 then
-        return math.abs(size) > 9 and ("%3d%s"):format(size, v) or ("%3.1f%s"):format(size, v)
-      end
-      size = size / 1024
+---@param size number
+---@return string size_str
+local function gen_size(size)
+  -- TODO(conni2461): If type directory we could just return 4.0K
+  for _, v in ipairs({ "", "K", "M", "G", "T", "P", "E", "Z" }) do
+    if math.abs(size) < 1024 then
+      return math.abs(size) > 9 and ("%3d%s"):format(size, v) or ("%3.1f%s"):format(size, v)
     end
-    return ("%.1f%s"):format(size, "Y")
+    size = size / 1024
   end
-end)()
+  return ("%.1f%s"):format(size, "Y")
+end
 
 local gen_date = (function()
   local current_year = os.date("%Y")
@@ -419,7 +430,7 @@ local get_groupname = (function()
   return fallback
 end)()
 
----@param tbl table<string|integer, table>
+---@param tbl table<string|integer, any[]>
 ---@return integer max_len
 local function get_max_len(tbl)
   if not tbl then
@@ -436,26 +447,31 @@ end
 
 ---@param data string[]
 ---@param path string
+---@return string[] results
+---@return { start_index: integer, end_index: integer }[][] sections
 local function gen_ls(data, path, opts)
   if not data or #data == 0 then
     return {}, {}
   end
 
-  local check_link = function(per, file)
+  ---@param per string
+  ---@param file string
+  ---@return string res
+  local function check_link(per, file)
     if per:sub(1, 1) == "l" then
       local resolved = uv.fs_realpath(path .. os_sep .. file)
       if not resolved then
         return file
       end
-      if resolved:sub(1, #path) == path then
-        resolved = resolved:sub(#path + 2, -1)
+      if resolved:sub(1, path:len()) == path then
+        resolved = resolved:sub(path:len() + 2, -1)
       end
       return ("%s -> %s"):format(file, resolved)
     end
     return file
   end
 
-  local results, sections = {}, {}
+  local results, sections = {}, {} ---@type string[], { start_index: integer, end_index: integer }[][]
   local users_tbl = os_sep ~= "\\" and {} or nil
   local groups_tbl = os_sep ~= "\\" and {} or nil
 
@@ -471,17 +487,18 @@ local function gen_ls(data, path, opts)
 
   local insert_in_results = (function()
     if not users_tbl and not groups_tbl then
-      local section_spacing_tbl = { [5] = 2, [6] = 0 }
+      ---@param ... string
       return function(...)
         local args = { ... }
-        local section = {
+        local section = { ---@type { start_index: integer, end_index: integer }[]
           { start_index = 01, end_index = 11 }, -- permissions, hardcoded indexes
           { start_index = 12, end_index = 17 }, -- size, hardcoded indexes
         }
         local cur_index = 19
         for k = 5, 6 do
+          local section_spacing_tbl = { [5] = 2, [6] = 0 }
           local v = section_spacing_tbl[k]
-          local end_index = cur_index + #args[k]
+          local end_index = cur_index + args[k]:len()
           table.insert(section, { start_index = cur_index, end_index = end_index })
           cur_index = end_index + v
         end
@@ -498,7 +515,7 @@ local function gen_ls(data, path, opts)
       [5] = { add = 2 },
       [6] = { add = 0 },
     }
-    local fmt_str = "%10s %5s %-" .. max_user_len .. "s %-" .. max_group_len .. "s  %s  %s"
+    ---@param ... string
     return function(...)
       local args = { ... }
       local section = {
@@ -508,12 +525,17 @@ local function gen_ls(data, path, opts)
       local cur_index = 18
       for k = 3, 6 do
         local v = section_spacing_tbl[k]
-        local end_index = cur_index + #args[k]
+        local end_index = cur_index + args[k]:len()
         table.insert(section, { start_index = cur_index, end_index = end_index })
         cur_index = v.max and (cur_index + v.max + v.add) or (end_index + v.add)
       end
       table.insert(sections, section)
-      table.insert(results, fmt_str:format(args[1], args[2], args[3], args[4], args[5], check_link(args[1], args[6])))
+      table.insert(
+        results,
+        ("%%10s %%5s %%-%ds %%-%ds  %%s  %%s")
+          :format(max_user_len, max_group_len)
+          :format(args[1], args[2], args[3], args[4], args[5], check_link(args[1], args[6]))
+      )
     end
   end)()
 
@@ -529,8 +551,7 @@ local function gen_ls(data, path, opts)
   end
 
   if opts and opts.group_directories_first then
-    local sorted_results = {}
-    local sorted_sections = {}
+    local sorted_results, sorted_sections = {}, {} ---@type string[], { start_index: integer, end_index: integer }[][]
     for k, v in ipairs(results) do
       if v:sub(1, 1) == "d" then
         table.insert(sorted_results, v)
@@ -551,18 +572,19 @@ end
 -- List directory contents. Will always apply --long option.  Use scan_dir for without --long
 ---@param path string
 ---@param opts? { hidden: boolean, add_dirs?: boolean, respect_gitignore: boolean, depth?: integer, group_directories_first: boolean }
----@return table
-function m.ls(path, opts)
+---@return string[] results
+---@return { start_index: integer, end_index: integer }[][] sections
+function M.ls(path, opts)
   opts = opts or {}
   opts.depth = opts.depth or 1
   opts.add_dirs = opts.add_dirs or true
-  return (gen_ls(m.scan_dir(path, opts), path, opts))
+  return gen_ls(M.scan_dir(path, opts), path, opts)
 end
 
 ---List directory contents. Will always apply --long option. Use scan_dir for without --long
 ---@param path string
 ---@param opts? { hidden: boolean, add_dirs?: boolean, respect_gitignore: boolean, depth?: integer, group_directories_first: boolean, on_exit: fun(...: any) }
-function m.ls_async(path, opts)
+function M.ls_async(path, opts)
   opts = opts or {}
   opts.depth = opts.depth or 1
   opts.add_dirs = opts.add_dirs or true
@@ -574,7 +596,7 @@ function m.ls_async(path, opts)
     end
   end
 
-  m.scan_dir_async(path, opts_copy)
+  M.scan_dir_async(path, opts_copy)
 end
 
-return m
+return M

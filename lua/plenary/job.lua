@@ -21,6 +21,7 @@ local F = require("plenary.functional")
 ---@field env? table<string, string>|string[] Environment looking like: { ['VAR'] = 'VALUE' } or { 'VAR=VALUE' }
 ---@field interactive? boolean
 ---@field maximum_results? number Stop processing results after this number
+---@field nvim_busted_path? string
 ---@field on_exit? fun(self: Job, code: number, signal: number)
 ---@field on_start? function
 ---@field on_stderr? fun(error: string, data: string, self?: Job)

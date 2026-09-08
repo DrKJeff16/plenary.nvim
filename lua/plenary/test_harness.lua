@@ -1,55 +1,72 @@
 local Path = require("plenary.path")
 local Job = require("plenary.job")
-
 local f = require("plenary.functional")
 local log = require("plenary.log")
 local win_float = require("plenary.window.float")
-
 local headless = require("plenary.nvim_meta").is_headless
-
 local plenary_dir = vim.fn.fnamemodify(debug.getinfo(1).source:match("@?(.*[/\\])"), ":p:h:h:h")
-
 local harness = {}
-
 local print_output = vim.schedule_wrap(function(_, ...)
   for _, v in ipairs({ ... }) do
     io.stdout:write(tostring(v))
     io.stdout:write("\n")
   end
 
-  vim.cmd([[mode]])
+  vim.cmd.mode()
 end)
 
-local get_nvim_output = function(job_id)
+---@param bufnr integer
+---@param option string
+---@param value any
+local function buf_optset(bufnr, option, value)
+  if vim.fn.has("nvim-0.10") == 1 then
+    vim.api.nvim_set_option_value(option, value, { buf = bufnr })
+  else
+    vim.api.nvim_buf_set_option(bufnr, option, value) ---@diagnostic disable-line:deprecated
+  end
+end
+
+---@param win integer
+---@param option string
+---@param value any
+local function win_optset(win, option, value)
+  if vim.fn.has("nvim-0.10") == 1 then
+    vim.api.nvim_set_option_value(option, value, { win = win })
+  else
+    vim.api.nvim_win_set_option(win, option, value) ---@diagnostic disable-line:deprecated
+  end
+end
+
+---@param job_id integer
+---@return fun(bufnr: integer, ...: string)
+local function get_nvim_output(job_id)
+  ---@param bufnr integer
+  ---@param ... string
   return vim.schedule_wrap(function(bufnr, ...)
-    if not vim.api.nvim_buf_is_valid(bufnr) then
-      return
-    end
-    for _, v in ipairs({ ... }) do
-      vim.api.nvim_chan_send(job_id, v .. "\r\n")
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      for _, v in ipairs({ ... }) do
+        vim.api.nvim_chan_send(job_id, v .. "\r\n")
+      end
     end
   end)
 end
 
+---@param command string
 function harness.test_directory_command(command)
   local split_string = vim.split(command, " ")
   local directory = vim.fn.expand(table.remove(split_string, 1))
-
   local opts = assert(loadstring("return " .. table.concat(split_string, " ")))()
-
-  return harness.test_directory(directory, opts)
+  harness.test_directory(directory, opts)
 end
 
 local function test_paths(paths, opts)
   local minimal = not opts or not opts.init or opts.minimal or opts.minimal_init
 
-  opts = vim.tbl_deep_extend("force", {
-    nvim_cmd = vim.v.progpath,
-    winopts = { winblend = 3 },
-    sequential = false,
-    keep_going = true,
-    timeout = 50000,
-  }, opts or {})
+  opts = vim.tbl_deep_extend(
+    "force",
+    { keep_going = true, nvim_cmd = vim.v.progpath, sequential = false, timeout = 50000, winopts = { winblend = 3 } },
+    opts or {}
+  )
 
   vim.env.PLENARY_TEST_TIMEOUT = opts.timeout
 
@@ -60,16 +77,16 @@ local function test_paths(paths, opts)
     res.job_id = vim.api.nvim_open_term(res.bufnr, {})
     vim.api.nvim_buf_set_keymap(res.bufnr, "n", "q", ":q<CR>", {})
 
-    vim.api.nvim_win_set_option(res.win_id, "winhl", "Normal:Normal")
-    vim.api.nvim_win_set_option(res.win_id, "conceallevel", 3)
-    vim.api.nvim_win_set_option(res.win_id, "concealcursor", "n")
+    win_optset(res.win_id, "winhl", "Normal:Normal")
+    win_optset(res.win_id, "conceallevel", 3)
+    win_optset(res.win_id, "concealcursor", "n")
 
     if res.border_win_id then
-      vim.api.nvim_win_set_option(res.border_win_id, "winhl", "Normal:Normal")
+      win_optset(res.border_win_id, "winhl", "Normal:Normal")
     end
 
     if res.bufnr then
-      vim.api.nvim_buf_set_option(res.bufnr, "filetype", "PlenaryTestPopup")
+      buf_optset(res.bufnr, "filetype", "PlenaryTestPopup")
     end
     vim.cmd("mode")
   end
@@ -79,7 +96,7 @@ local function test_paths(paths, opts)
   local path_len = #paths
   local failure = false
 
-  local jobs = vim.tbl_map(function(p)
+  local jobs = vim.tbl_map(function(p) ---@param p plenary.Path
     local args = {
       "--headless",
       "-c",
@@ -98,7 +115,7 @@ local function test_paths(paths, opts)
     end
 
     table.insert(args, "-c")
-    table.insert(args, string.format('lua require("plenary.busted").run("%s")', p:absolute():gsub("\\", "\\\\")))
+    table.insert(args, ('lua require("plenary.busted").run("%s")'):format(p:absolute():gsub("\\", "\\\\")))
 
     local job = Job:new({
       command = opts.nvim_cmd,
@@ -117,13 +134,13 @@ local function test_paths(paths, opts)
         end
       end,
 
-      on_exit = vim.schedule_wrap(function(j_self, _, _)
+      on_exit = vim.schedule_wrap(function(j_self) ---@param j_self Job
         if path_len ~= 1 then
           outputter(res.bufnr, unpack(j_self:stderr_result()))
           outputter(res.bufnr, unpack(j_self:result()))
         end
 
-        vim.cmd("mode")
+        vim.cmd.mode()
       end),
     })
     job.nvim_busted_path = p.filename
@@ -162,7 +179,7 @@ local function test_paths(paths, opts)
     log.debug("... Parallel wait")
     Job.join(unpack(jobs))
     log.debug("... Completed jobs")
-    table.remove(jobs, table.getn(jobs))
+    table.remove(jobs, #jobs)
     failure = f.any(function(_, v)
       return v.code ~= 0
     end, jobs)
@@ -170,14 +187,12 @@ local function test_paths(paths, opts)
   vim.wait(100)
 
   if headless then
-    if failure then
-      return vim.cmd("1cq")
-    end
-
-    return vim.cmd("0cq")
+    return vim.cmd((failure and "1" or "0") .. "cq")
   end
 end
 
+---@param directory string
+---@param opts table
 function harness.test_directory(directory, opts)
   print("Starting...")
   directory = directory:gsub("\\", "/")

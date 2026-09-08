@@ -80,19 +80,15 @@ end
 ---@return boolean|nil res
 local function call_if_not_empty(fun, state_x, ...)
   if state_x == nil then
-    return
+    return state_x, fun(...)
   end
-  return state_x, fun(...)
 end
 
 --------------------------------------------------------------------------------
 -- Basic Functions
 --------------------------------------------------------------------------------
 
----@return nil
-local function nil_gen(_, _)
-  return nil
-end
+local function nil_gen() end
 
 local pairs_gen = pairs({})
 
@@ -158,21 +154,17 @@ end
 ---See the __call metamethod for more information
 ---@param gen function
 ---@param param? any
----@param state? integer|{ [1]: any, [2]: any, [3]?: any }
----@return Iterator
+---@param state? integer|{ [1]: (fun(param: string, state: integer): result: integer), [2]: string, [3]: integer }
+---@return Iterator iterator
 local function wrap(gen, param, state)
-  return setmetatable({
-    gen = gen,
-    param = param,
-    state = state,
-  }, Iterator)
+  return setmetatable({ gen = gen, param = param, state = state }, Iterator)
 end
 
 ---Unwrap an iterator metatable into the iterator triplet
 ---@param self Iterator
----@return any
----@return any
----@return any
+---@return fun(param: string, state: integer): result: integer
+---@return string
+---@return integer
 local function unwrap(self)
   return self.gen, self.param, self.state
 end
@@ -440,9 +432,9 @@ local flatten_gen1
 do
   ---@param new_iter Iterator
   ---@param state_x? integer
-  ---@return Iterator|nil iterator
+  ---@return Iterator|nil|? iterator
   ---@return ...
-  local it = function(new_iter, state_x, ...)
+  local function it(new_iter, state_x, ...)
     if not state_x then
       return
     end
@@ -452,7 +444,9 @@ do
   ---@param state table
   ---@param state_x? integer
   ---@param ... any
-  flatten_gen1 = function(state, state_x, ...)
+  ---@return Iterator|nil|?
+  ---@return ...
+  function flatten_gen1(state, state_x, ...)
     if not state_x then
       return
     end
@@ -471,13 +465,14 @@ do
   end
 end
 
----@param state? table
+---@param _ boolean
+---@param state? { [1]: (fun(param: string, state: integer): result: integer), [2]: string, [3]: integer }
+---@return Iterator|nil|? iterator
+---@return ...
 local function flatten_gen(_, state)
-  if not state then
-    return
+  if state then
+    return flatten_gen1(state, state[1](state[2], state[3]))
   end
-  local gen_x, param_x, state_x = state[1], state[2], state[3]
-  return flatten_gen1(state, gen_x(param_x, state_x))
 end
 
 ---Iterator adapter that will recursivley flatten nested iterator structure
@@ -535,7 +530,7 @@ local function filter_detect(fun, gen_x, param_x, state_x, ...)
   return filterm_gen(fun, gen_x, param_x, state_x, ...)
 end
 
-local filter_gen = function(param, state_x)
+local function filter_gen(param, state_x)
   local gen_x, param_x, fun = param[1], param[2], param[3]
   return filter_detect(fun, gen_x, param_x, gen_x(param_x, state_x))
 end
@@ -657,10 +652,9 @@ local chain_gen_r2 = function(param, state, state_x, ...)
   if state_x == nil then
     local i = state[1] + 1
     if param[3 * i - 1] == nil then
-      return nil
+      state_x = param[3 * i]
+      return chain_gen_r1(param, { i, state_x })
     end
-    state_x = param[3 * i]
-    return chain_gen_r1(param, { i, state_x })
   end
   return { state[1], state_x }, ...
 end

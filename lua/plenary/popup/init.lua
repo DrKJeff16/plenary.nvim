@@ -7,7 +7,6 @@
 
 local uv = vim.uv or vim.loop
 
-local Border = require("plenary.window.border")
 local Window = require("plenary.window")
 local utils = require("plenary.popup.utils")
 
@@ -20,10 +19,11 @@ local if_nil = vim.nonnil
 ---@field topright string
 
 ---@class plenary.Popup
----@field _pos_map plenary.Popup.PosMap
+---@field _borders table<integer, plenary.Window.Border>
 ---Keep track of hidden popups, so we can load them with popup.show()
 ---@field _hidden plenary.Popup[]|table<string, plenary.Popup>
----@field _borders table<integer, { bufnr: integer, content_win_id: any, win_id: integer }>
+---@field _pos_map plenary.Popup.PosMap
+---@field _callbacks table<integer, function>
 local M = {}
 
 M._pos_map = { botleft = "SW", botright = "SE", topleft = "NW", topright = "NE" }
@@ -34,11 +34,7 @@ M._hidden = {}
 M._borders = {}
 
 local function dict_default(options, key, default)
-  if options[key] == nil then
-    return default[key]
-  else
-    return options[key]
-  end
+  return options[key] == nil and default[key] or options[key]
 end
 
 -- Callbacks to be called later by popup.execute_callback
@@ -87,14 +83,12 @@ local function add_position_config(win_opts, vim_options, default_opts)
   -- and "col" are used for. When not set "topleft" behaviour is used.
   -- Alternatively "center" can be used to position the popup in the center of the Neovim window,
   -- in which case "line" and "col" are ignored.
-  if vim_options.pos then
-    if vim_options.pos == "center" then
-      vim_options.line = 0
-      vim_options.col = 0
-      win_opts.anchor = "NW"
-    else
-      win_opts.anchor = M._pos_map[vim_options.pos]
-    end
+  if vim_options.pos and vim_options.pos == "center" then
+    vim_options.line = 0
+    vim_options.col = 0
+    win_opts.anchor = "NW"
+  elseif vim_options.pos then
+    win_opts.anchor = M._pos_map[vim_options.pos]
   else
     win_opts.anchor = "NW" -- This is the default, but makes `posinvert` easier to implement
   end
@@ -170,10 +164,7 @@ function M.create(what, vim_options)
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, true, what)
   end
 
-  local option_defaults = {
-    posinvert = true,
-    zindex = 50,
-  }
+  local option_defaults = { posinvert = true, zindex = 50 }
 
   vim_options.width = if_nil(vim_options.width, 1)
   if type(what) == "number" then
@@ -308,13 +299,13 @@ function M.create(what, vim_options)
     should_show_border = true
 
     if type(vim_options.border) == "boolean" or vim.tbl_isempty(vim_options.border) then
-      border_options.border_thickness = Border._default_thickness
+      border_options.border_thickness = require("plenary.window.border")._default_thickness
     elseif #vim_options.border == 4 then
       border_options.border_thickness = {
-        top = utils.bounded(vim_options.border[1], 0, 1),
-        right = utils.bounded(vim_options.border[2], 0, 1),
         bot = utils.bounded(vim_options.border[3], 0, 1),
         left = utils.bounded(vim_options.border[4], 0, 1),
+        right = utils.bounded(vim_options.border[2], 0, 1),
+        top = utils.bounded(vim_options.border[1], 0, 1),
       }
     else
       error(("Invalid configuration for border: %s"):format(vim.inspect(vim_options.border)))
@@ -373,12 +364,12 @@ function M.create(what, vim_options)
     border_options.title = vim_options.title
   end
 
-  local border = nil
+  local border = nil ---@type plenary.Window.Border|nil|?
   if should_show_border then
     border_options.focusable = vim_options.border_focusable
     border_options.highlight = vim_options.borderhighlight and ("Normal:%s"):format(vim_options.borderhighlight)
     border_options.titlehighlight = vim_options.titlehighlight
-    border = Border:new(bufnr, win_id, win_opts, border_options)
+    border = require("plenary.window.border"):new(bufnr, win_id, win_opts, border_options)
     M._borders[win_id] = border
   end
 
@@ -426,10 +417,7 @@ function M.create(what, vim_options)
   --    but actually has some extra metadata about it.
   --
   --    This would make `hidden` a lot easier to manage
-  return win_id, {
-    win_id = win_id,
-    border = border,
-  }
+  return win_id, { border = border, win_id = win_id }
 end
 
 -- Move popup with window id {win_id} to the position specified with {vim_options}.
@@ -442,6 +430,8 @@ end
 -- - maxwidth/minwidth
 -- - pos
 -- Unimplemented vim options here include: fixed
+---@param win_id integer
+---@param vim_options table<string, any>
 function M.move(win_id, vim_options)
   -- Create win_options
   local win_opts = {}
@@ -462,9 +452,8 @@ function M.move(win_id, vim_options)
   vim.api.nvim_win_set_config(win_id, win_opts)
 
   -- Update border window (if present)
-  local border = M._borders[win_id]
-  if border ~= nil then
-    border:move(win_opts, border._border_win_options)
+  if M._borders[win_id] then
+    M._borders[win_id]:move(win_opts, M._borders[win_id]._border_win_options)
   end
 end
 

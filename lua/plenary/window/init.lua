@@ -1,6 +1,9 @@
-local window = {}
+---@class plenary.Window
+local M = {}
 
-window.try_close = function(win_id, force)
+---@param win_id integer
+---@param force? boolean
+function M.try_close(win_id, force)
   if force == nil then
     force = true
   end
@@ -8,9 +11,11 @@ window.try_close = function(win_id, force)
   pcall(vim.api.nvim_win_close, win_id, force)
 end
 
-window.close_related_win = function(parent_win_id, child_win_id)
-  window.try_close(parent_win_id, true)
-  window.try_close(child_win_id, true)
+---@param parent_win_id integer
+---@param child_win_id integer
+function M.close_related_win(parent_win_id, child_win_id)
+  M.try_close(parent_win_id, true)
+  M.try_close(child_win_id, true)
 end
 
-return window
+return M

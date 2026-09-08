@@ -159,16 +159,18 @@ end
 --- ---
 ---@field is_enum fun(tbl: table): enum: boolean
 ---Creates an enum from the given list-like table, like so:
----<pre>
+---
+---```
 ---local enum = Enum.make_enum{
 ---    'Foo',
 ---    'Bar',
 ---    {'Qux', 10}
 ---}
----</pre>
+---```
+---
 ---@field make_enum fun(tbl: table): enum: Enum
 ---@overload fun(tbl: table): enum: table<integer, string|{ value: integer }>
-return setmetatable({ is_enum = is_enum, make_enum = make_enum }, {
+local M = setmetatable({ is_enum = is_enum, make_enum = make_enum }, {
   ---@param key string
   __index = function(_, key)
     if Enum[key] then
@@ -180,3 +182,5 @@ return setmetatable({ is_enum = is_enum, make_enum = make_enum }, {
     return make_enum(tbl)
   end,
 })
+
+return M

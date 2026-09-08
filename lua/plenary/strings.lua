@@ -1,14 +1,15 @@
 local path = require("plenary.path").path
 
+---@class plenary.Strings
 local M = {}
 
 M.strdisplaywidth = (function()
-  local fallback = function(str, col)
+  ---@param str string
+  ---@param col? integer
+  ---@return integer res
+  local function fallback(str, col)
     str = tostring(str)
-    if vim.in_fast_event() then
-      return #str - (col or 0)
-    end
-    return vim.fn.strdisplaywidth(str, col)
+    return vim.in_fast_event() and (str:len() - (col or 0)) or vim.fn.strdisplaywidth(str, col)
   end
 
   if jit and path.sep ~= [[\]] then
@@ -18,31 +19,28 @@ M.strdisplaywidth = (function()
       int linetabsize_col(int startcol, char_u *s);
     ]])
 
-    local ffi_func = function(str, col)
+    ---@param str string
+    ---@param col? integer
+    ---@return integer res
+    local function ffi_func(str, col)
       str = tostring(str)
-      local startcol = col or 0
-      local s = ffi.new("char[?]", #str + 1)
+      local s = ffi.new("char[?]", str:len() + 1)
       ffi.copy(s, str)
-      return ffi.C.linetabsize_col(startcol, s) - startcol
+      return ffi.C.linetabsize_col(col or 0, s) - (col or 0)
     end
 
-    local ok = pcall(ffi_func, "hello")
-    if ok then
-      return ffi_func
-    else
-      return fallback
-    end
-  else
-    return fallback
+    return (pcall(ffi_func, "hello")) and ffi_func or fallback
   end
+  return fallback
 end)()
 
 M.strcharpart = (function()
-  local fallback = function(str, nchar, charlen)
-    if vim.in_fast_event() then
-      return str:sub(nchar + 1, charlen)
-    end
-    return vim.fn.strcharpart(str, nchar, charlen)
+  ---@param str string
+  ---@param nchar integer
+  ---@param charlen integer
+  ---@return string res
+  local function fallback(str, nchar, charlen)
+    return vim.in_fast_event() and str:sub(nchar + 1, charlen) or vim.fn.strcharpart(str, nchar, charlen)
   end
 
   if jit and path.sep ~= [[\]] then
@@ -52,17 +50,22 @@ M.strcharpart = (function()
       int utf_ptr2len(const char_u *const p);
     ]])
 
+    ---@param str string
+    ---@return function func
     local function utf_ptr2len(str)
       local c_str = ffi.new("char[?]", #str + 1)
       ffi.copy(c_str, str)
       return ffi.C.utf_ptr2len(c_str)
     end
 
-    local ok = pcall(utf_ptr2len, "🔭")
-    if not ok then
+    if not (pcall(utf_ptr2len, "🔭")) then
       return fallback
     end
 
+    ---@param str string
+    ---@param nchar integer
+    ---@param charlen integer
+    ---@return string res
     return function(str, nchar, charlen)
       local nbyte = 0
       if nchar > 0 then
@@ -86,43 +89,43 @@ M.strcharpart = (function()
           charlen = charlen - 1
         end
       else
-        len = #str - nbyte
+        len = str:len() - nbyte
       end
 
       if nbyte < 0 then
         len = len + nbyte
         nbyte = 0
-      elseif nbyte > #str then
-        nbyte = #str
+      elseif nbyte > str:len() then
+        nbyte = str:len()
       end
-      if len < 0 then
-        len = 0
-      elseif nbyte + len > #str then
-        len = #str - nbyte
-      end
+      len = len < 0 and 0 or ((nbyte + len > str:len()) and (str:len() - nbyte) or len)
 
       return str:sub(nbyte + 1, nbyte + len)
     end
-  else
-    return fallback
   end
+  return fallback
 end)()
 
-local truncate = function(str, len, dots, direction)
+---@param a string
+---@param b string
+---@param dir integer
+---@return string res
+local function concat(a, b, dir)
+  return dir > 0 and (a .. b) or (b .. a)
+end
+
+---@param str string
+---@param len integer
+---@param dots string
+---@param direction integer
+---@return string result
+local function truncate(str, len, dots, direction)
   if M.strdisplaywidth(str) <= len then
     return str
   end
-  local start = direction > 0 and 0 or str:len()
-  local current = 0
-  local result = ""
+
+  local start, current, result = direction > 0 and 0 or str:len(), 0, ""
   local len_of_dots = M.strdisplaywidth(dots)
-  local concat = function(a, b, dir)
-    if dir > 0 then
-      return a .. b
-    else
-      return b .. a
-    end
-  end
   while true do
     local part = M.strcharpart(str, start, 1)
     current = current + M.strdisplaywidth(part)
@@ -136,40 +139,47 @@ local truncate = function(str, len, dots, direction)
   return result
 end
 
-M.truncate = function(str, len, dots, direction)
+---@param str string
+---@param len integer
+---@param dots? string
+---@param direction? integer
+function M.truncate(str, len, dots, direction)
   str = tostring(str) -- We need to make sure its an actually a string and not a number
   dots = dots or "…"
   direction = direction or 1
+
   if direction ~= 0 then
     return truncate(str, len, dots, direction)
-  else
-    if M.strdisplaywidth(str) <= len then
-      return str
-    end
-    local len1 = math.floor((len + M.strdisplaywidth(dots)) / 2)
-    local s1 = truncate(str, len1, dots, 1)
-    local len2 = len - M.strdisplaywidth(s1) + M.strdisplaywidth(dots)
-    local s2 = truncate(str, len2, dots, -1)
-    return s1 .. s2:sub(dots:len() + 1)
   end
+  if M.strdisplaywidth(str) <= len then
+    return str
+  end
+
+  local s1 = truncate(str, math.floor((len + M.strdisplaywidth(dots)) / 2), dots, 1)
+  return s1 .. truncate(str, len - M.strdisplaywidth(s1) + M.strdisplaywidth(dots), dots, -1):sub(dots:len() + 1)
 end
 
-M.align_str = function(string, width, right_justify)
-  local str_len = M.strdisplaywidth(string)
-  return right_justify and string.rep(" ", width - str_len) .. string or string .. string.rep(" ", width - str_len)
+---@param str string
+---@param width integer
+---@param right_justify boolean
+function M.align_str(str, width, right_justify)
+  local str_len = M.strdisplaywidth(str)
+  return right_justify and (" "):rep(width - str_len) .. str or str .. (" "):rep(width - str_len)
 end
 
-M.dedent = function(str, leave_indent)
+---@param str string
+---@param leave_indent? integer
+function M.dedent(str, leave_indent)
   -- Check each line and detect the minimum indent.
-  local indent
-  local info = {}
+  local indent ---@type integer|nil|?
+  local info = {} ---@type { chars: integer, line: string, width: integer }[]
   for line in str:gmatch("[^\n]*\n?") do
     -- It matches '' for the last line.
     if line ~= "" then
-      local chars, width
-      local line_indent = line:match("^[ \t]+")
+      local chars, width ---@type integer, integer
+      local line_indent = line:match("^[ \t]+") --[[@as string|nil|?]]
       if line_indent then
-        chars = #line_indent
+        chars = line_indent:len()
         width = M.strdisplaywidth(line_indent)
         if not indent or width < indent then
           indent = width
@@ -184,19 +194,13 @@ M.dedent = function(str, leave_indent)
 
   -- Build up the result
   leave_indent = leave_indent or 0
-  local result = {}
+  local result = {} ---@type string[]
   for _, i in ipairs(info) do
-    local line
-    if i.chars then
-      local content = i.line:sub(i.chars + 1)
-      local indent_width = i.width - indent + leave_indent
-      line = (" "):rep(indent_width) .. content
-    elseif i.line == "\n" then
-      line = "\n"
-    else
-      line = (" "):rep(leave_indent) .. i.line
-    end
-    table.insert(result, line)
+    table.insert(
+      result,
+      i.chars and ((" "):rep(i.width - indent + leave_indent) .. i.line:sub(i.chars + 1))
+        or (i.line == "\n" and "\n" or ((" "):rep(leave_indent) .. i.line))
+    )
   end
   return table.concat(result)
 end

@@ -9,7 +9,7 @@
 ---@field fun plenary.Fun
 ---@field functional plenary.Functional
 ---@field path plenary.Path
-return setmetatable({}, {
+local M = setmetatable({}, {
   ---@param t plenary
   ---@param k string|integer
   __index = function(t, k)
@@ -20,3 +20,5 @@ return setmetatable({}, {
     return val
   end,
 })
+
+return M

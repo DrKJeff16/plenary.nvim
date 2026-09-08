@@ -627,7 +627,6 @@ function Path:rm(opts)
   end
 end
 
--- Path:is_* {{{
 ---@return boolean is_dir
 function Path:is_dir()
   -- TODO: I wonder when this would be better, if ever.
@@ -640,7 +639,6 @@ end
 function Path:is_absolute()
   return is_absolute(self.filename, self._sep)
 end
--- }}}
 
 ---@return string[] split
 function Path:_split()

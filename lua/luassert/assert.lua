@@ -1,12 +1,12 @@
-local s = require 'say'
-local astate = require 'luassert.state'
-local util = require 'luassert.util'
+local s = require("say")
+local astate = require("luassert.state")
+local util = require("luassert.util")
 local unpack = util.unpack
-local obj   -- the returned module table
+local obj -- the returned module table
 local level_mt = {}
 
 -- list of namespaces
-local namespace = require 'luassert.namespaces'
+local namespace = require("luassert.namespaces")
 
 local function geterror(assertion_message, failure_message, args)
   if util.hastostring(failure_message) then
@@ -47,7 +47,7 @@ local __state_meta = {
         if not self.mod then
           message = assertion.negative_message
         end
-        local err = geterror(message, rawget(self,"failure_message"), arguments)
+        local err = geterror(message, rawget(self, "failure_message"), arguments)
         error(err or "assertion failed!", util.errorlevel())
       end
 
@@ -70,16 +70,18 @@ local __state_meta = {
   end,
 
   __index = function(self, key)
-    for token in key:lower():gmatch('[^_]+') do
+    for token in key:lower():gmatch("[^_]+") do
       table.insert(self.tokens, token)
     end
 
     return self
-  end
+  end,
 }
 
 obj = {
-  state = function() return setmetatable({mod=true, tokens={}}, __state_meta) end,
+  state = function()
+    return setmetatable({ mod = true, tokens = {} }, __state_meta)
+  end,
 
   -- registers a function in namespace
   register = function(self, nspace, name, callback, positive_message, negative_message)
@@ -90,8 +92,8 @@ obj = {
     namespace[nspace][lowername] = {
       callback = callback,
       name = lowername,
-      positive_message=positive_message,
-      negative_message=negative_message
+      positive_message = positive_message,
+      negative_message = negative_message,
     }
   end,
 
@@ -117,13 +119,15 @@ obj = {
 
   format = function(self, args)
     -- args.n specifies the number of arguments in case of 'trailing nil' arguments which get lost
-    local nofmt = args.nofmt or {}  -- arguments in this list should not be formatted
+    local nofmt = args.nofmt or {} -- arguments in this list should not be formatted
     local fmtargs = args.fmtargs or {} -- additional arguments to be passed to formatter
     for i = 1, (args.n or #args) do -- cannot use pairs because table might have nils
       if not nofmt[i] then
         local val = args[i]
         local valfmt = astate.format_argument(val, nil, fmtargs[i])
-        if valfmt == nil then valfmt = tostring(val) end -- no formatter found
+        if valfmt == nil then
+          valfmt = tostring(val)
+        end -- no formatter found
         args[i] = valfmt
       end
     end
@@ -148,8 +152,8 @@ obj = {
 
   level = function(self, level)
     return setmetatable({
-        level = level
-      }, level_mt)
+      level = level,
+    }, level_mt)
   end,
 
   -- returns the level if a level-value, otherwise nil
@@ -168,13 +172,12 @@ local __meta = {
       local err_level = (self:get_level(level) or 1) + 1
       error(message or "assertion failed!", err_level)
     end
-    return bool , message , level , ...
+    return bool, message, level, ...
   end,
 
   __index = function(self, key)
     return rawget(self, key) or self.state()[key]
   end,
-
 }
 
 return setmetatable(obj, __meta)

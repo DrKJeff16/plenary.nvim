@@ -3,29 +3,38 @@ local arglist_mt = {}
 
 -- have pack/unpack both respect the 'n' field
 local _unpack = table.unpack or unpack
-local unpack = function(t, i, j) return _unpack(t, i or 1, j or t.n or #t) end
-local pack = function(...) return { n = select("#", ...), ... } end
+local unpack = function(t, i, j)
+  return _unpack(t, i or 1, j or t.n or #t)
+end
+local pack = function(...)
+  return { n = select("#", ...), ... }
+end
 util.pack = pack
 util.unpack = unpack
 
-
-function util.deepcompare(t1,t2,ignore_mt,cycles,thresh1,thresh2)
+function util.deepcompare(t1, t2, ignore_mt, cycles, thresh1, thresh2)
   local ty1 = type(t1)
   local ty2 = type(t2)
   -- non-table types can be directly compared
-  if ty1 ~= 'table' or ty2 ~= 'table' then return t1 == t2 end
+  if ty1 ~= "table" or ty2 ~= "table" then
+    return t1 == t2
+  end
   local mt1 = debug.getmetatable(t1)
   local mt2 = debug.getmetatable(t2)
   -- would equality be determined by metatable __eq?
   if mt1 and mt1 == mt2 and mt1.__eq then
     -- then use that unless asked not to
-    if not ignore_mt then return t1 == t2 end
+    if not ignore_mt then
+      return t1 == t2
+    end
   else -- we can skip the deep comparison below if t1 and t2 share identity
-    if rawequal(t1, t2) then return true end
+    if rawequal(t1, t2) then
+      return true
+    end
   end
 
   -- handle recursive tables
-  cycles = cycles or {{},{}}
+  cycles = cycles or { {}, {} }
   thresh1, thresh2 = (thresh1 or 1), (thresh2 or 1)
   cycles[1][t1] = (cycles[1][t1] or 0)
   cycles[2][t2] = (cycles[2][t2] or 0)
@@ -40,23 +49,25 @@ function util.deepcompare(t1,t2,ignore_mt,cycles,thresh1,thresh2)
   cycles[1][t1] = cycles[1][t1] + 1
   cycles[2][t2] = cycles[2][t2] + 1
 
-  for k1,v1 in next, t1 do
+  for k1, v1 in next, t1 do
     local v2 = t2[k1]
     if v2 == nil then
-      return false, {k1}
+      return false, { k1 }
     end
 
-    local same, crumbs = util.deepcompare(v1,v2,nil,cycles,thresh1,thresh2)
+    local same, crumbs = util.deepcompare(v1, v2, nil, cycles, thresh1, thresh2)
     if not same then
       crumbs = crumbs or {}
       table.insert(crumbs, k1)
       return false, crumbs
     end
   end
-  for k2,_ in next, t2 do
+  for k2, _ in next, t2 do
     -- only check whether each element has a t1 counterpart, actual comparison
     -- has been done in first loop above
-    if t1[k2] == nil then return false, {k2} end
+    if t1[k2] == nil then
+      return false, { k2 }
+    end
   end
 
   cycles[1][t1] = cycles[1][t1] - 1
@@ -66,26 +77,32 @@ function util.deepcompare(t1,t2,ignore_mt,cycles,thresh1,thresh2)
 end
 
 function util.shallowcopy(t)
-  if type(t) ~= "table" then return t end
+  if type(t) ~= "table" then
+    return t
+  end
   local copy = {}
   setmetatable(copy, getmetatable(t))
-  for k,v in next, t do
+  for k, v in next, t do
     copy[k] = v
   end
   return copy
 end
 
 function util.deepcopy(t, deepmt, cache)
-  local spy = require 'luassert.spy'
-  if type(t) ~= "table" then return t end
+  local spy = require("luassert.spy")
+  if type(t) ~= "table" then
+    return t
+  end
   local copy = {}
 
   -- handle recursive tables
   local cache = cache or {}
-  if cache[t] then return cache[t] end
+  if cache[t] then
+    return cache[t]
+  end
   cache[t] = copy
 
-  for k,v in next, t do
+  for k, v in next, t do
     copy[k] = (spy.is_spy(v) and v or util.deepcopy(v, deepmt, cache))
   end
   if deepmt then
@@ -103,9 +120,9 @@ end
 function util.copyargs(args)
   local copy = {}
   setmetatable(copy, getmetatable(args))
-  local match = require 'luassert.match'
-  local spy = require 'luassert.spy'
-  for k,v in pairs(args) do
+  local match = require("luassert.match")
+  local spy = require("luassert.spy")
+  for k, v in pairs(args) do
     copy[k] = ((match.is_matcher(v) or spy.is_spy(v)) and v or util.deepcopy(v))
   end
   return { vals = copy, refs = util.shallowcopy(args) }
@@ -129,7 +146,7 @@ end
 -- @param specs arguments/return values to match against args/argsrefs
 -- @return true if specs match args/argsrefs, false otherwise
 local function matcharg(args, argrefs, specs)
-  local match = require 'luassert.match'
+  local match = require("luassert.match")
   for idx, argval in pairs(args) do
     local spec = specs[idx]
     if match.is_matcher(spec) then
@@ -139,7 +156,7 @@ local function matcharg(args, argrefs, specs)
       if not spec(argval) then
         return false
       end
-    elseif (spec == nil or not util.deepcompare(argval, spec)) then
+    elseif spec == nil or not util.deepcompare(argval, spec) then
       return false
     end
   end
@@ -211,8 +228,8 @@ end
 -- @return No return values
 function util.tinsert(...)
   -- check optional POS value
-  local args = {...}
-  local c = select('#',...)
+  local args = { ... }
+  local c = select("#", ...)
   local t = args[1]
   local pos = args[2]
   local val = args[3]
@@ -231,7 +248,7 @@ function util.tinsert(...)
   end
   -- shift everything up 1 pos
   for i = t.n, pos + 1, -1 do
-    t[i]=t[i-1]
+    t[i] = t[i - 1]
   end
   -- add element to be inserted
   t[pos] = val
@@ -257,7 +274,7 @@ function util.tremove(t, pos)
   local removed = t[pos]
   -- shift everything up 1 pos
   for i = pos, t.n do
-    t[i]=t[i+1]
+    t[i] = t[i + 1]
   end
   -- set size, clean last
   t[t.n] = nil
@@ -300,7 +317,9 @@ function util.errorlevel(level)
     info = debug.getinfo(level)
     source = (info or {}).source
   end
-  if level > 1 then level = level - 1 end -- deduct call to errorlevel() itself
+  if level > 1 then
+    level = level - 1
+  end -- deduct call to errorlevel() itself
   return level
 end
 
@@ -310,7 +329,7 @@ end
 -- @param tokens list of tokens to search for keys
 -- @return table, list of keys that were extracted
 function util.extract_keys(nspace, tokens)
-  local namespace = require 'luassert.namespaces'
+  local namespace = require("luassert.namespaces")
 
   -- find valid keys by coalescing tokens as needed, starting from the end
   local keys = {}
@@ -318,15 +337,15 @@ function util.extract_keys(nspace, tokens)
   local i = #tokens
   while i > 0 do
     local token = tokens[i]
-    key = key and (token .. '_' .. key) or token
+    key = key and (token .. "_" .. key) or token
 
     -- find longest matching key in the given namespace
-    local longkey = i > 1 and (tokens[i-1] .. '_' .. key) or nil
+    local longkey = i > 1 and (tokens[i - 1] .. "_" .. key) or nil
     while i > 1 and longkey and namespace[nspace][longkey] do
       key = longkey
       i = i - 1
       token = tokens[i]
-      longkey = (token .. '_' .. key)
+      longkey = (token .. "_" .. key)
     end
 
     if namespace.modifier[key] or namespace[nspace][key] then
@@ -338,7 +357,7 @@ function util.extract_keys(nspace, tokens)
 
   -- if there's anything left we didn't recognize it
   if key then
-    error("luassert: unknown modifier/" .. nspace .. ": '" .. key .."'", util.errorlevel(2))
+    error("luassert: unknown modifier/" .. nspace .. ": '" .. key .. "'", util.errorlevel(2))
   end
 
   return keys
@@ -349,7 +368,7 @@ end
 -- The table will get a metatable to identify it as an arglist
 function util.make_arglist(...)
   local arglist = { ... }
-  arglist.n = select('#', ...) -- add values count for trailing nils
+  arglist.n = select("#", ...) -- add values count for trailing nils
   return setmetatable(arglist, arglist_mt)
 end
 

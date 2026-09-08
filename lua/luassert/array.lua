@@ -1,5 +1,5 @@
-local assert = require('luassert.assert')
-local say = require('say')
+local assert = require("luassert.assert")
+local say = require("say")
 
 -- Example usage:
 -- local arr = { "one", "two", "three" }
@@ -9,7 +9,6 @@ local say = require('say')
 --
 -- local first_hole = assert.array(arr).has.holes(4)     -- check array of size 4 to contain holes --> passes
 -- assert.equal(4, first_hole)        -- passes, as the index of the first hole is returned
-
 
 -- Unique key to store the object we operate on in the state object
 -- key must be unique, to make sure we do not have name collissions in the shared state object
@@ -32,14 +31,12 @@ local function holes(state, args, level)
   if length == nil then
     length = 0
     for i in pairs(arr) do
-      if type(i) == "number" and
-         i > length and
-         math.floor(i) == i then
+      if type(i) == "number" and i > length and math.floor(i) == i then
         length = i
       end
     end
   end
-  assert(type(length) == "number", "expected array length to be of type 'number', got: "..tostring(length))
+  assert(type(length) == "number", "expected array length to be of type 'number', got: " .. tostring(length))
   -- let's do the actual assertion
   local missing
   for i = 1, length do
@@ -55,16 +52,20 @@ local function holes(state, args, level)
 end
 
 -- Register the proper assertion messages
-say:set("assertion.array_holes.positive", [[
+say:set(
+  "assertion.array_holes.positive",
+  [[
 Expected array to have holes, but none was found.
-]])
-say:set("assertion.array_holes.negative", [[
+]]
+)
+say:set(
+  "assertion.array_holes.negative",
+  [[
 Expected array to not have holes, hole found at position: %s
-]])
+]]
+)
 
 -- Register the assertion, and the modifier
-assert:register("assertion", "holes", holes,
-                  "assertion.array_holes.positive",
-                  "assertion.array_holes.negative")
+assert:register("assertion", "holes", holes, "assertion.array_holes.positive", "assertion.array_holes.negative")
 
 assert:register("modifier", "array", array)

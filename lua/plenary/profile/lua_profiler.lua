@@ -7,7 +7,6 @@
 -- Hopefully will add some better neovim stuff in the future.
 -- Shoutout to @clason for finding this.
 
-
 ---------------------------------------|
 --- Configuration
 --
@@ -27,16 +26,37 @@ local relaWidth = 6
 local callWidth = 4
 
 local reportSaved = " > Report saved to"
-local formatOutputHeader = "| %-"..fileWidth.."s: %-"..funcWidth.."s: %-"..lineWidth.."s: %-"..timeWidth.."s: %-"..relaWidth.."s: %-"..callWidth.."s|\n"
-local formatOutputTitle = "%-"..fileWidth.."."..fileWidth.."s: %-"..funcWidth.."."..funcWidth.."s: %-"..lineWidth.."s" -- File / Function / Line count
-local formatOutput = "| %s: %-"..timeWidth.."s: %-"..relaWidth.."s: %-"..callWidth.."s|\n" -- Time / Relative / Called
+local formatOutputHeader = "| %-"
+  .. fileWidth
+  .. "s: %-"
+  .. funcWidth
+  .. "s: %-"
+  .. lineWidth
+  .. "s: %-"
+  .. timeWidth
+  .. "s: %-"
+  .. relaWidth
+  .. "s: %-"
+  .. callWidth
+  .. "s|\n"
+local formatOutputTitle = "%-"
+  .. fileWidth
+  .. "."
+  .. fileWidth
+  .. "s: %-"
+  .. funcWidth
+  .. "."
+  .. funcWidth
+  .. "s: %-"
+  .. lineWidth
+  .. "s" -- File / Function / Line count
+local formatOutput = "| %s: %-" .. timeWidth .. "s: %-" .. relaWidth .. "s: %-" .. callWidth .. "s|\n" -- Time / Relative / Called
 local formatTotalTime = "TOTAL TIME   = %f s\n"
-local formatFunLine = "%"..(lineWidth - 2).."i"
+local formatFunLine = "%" .. (lineWidth - 2) .. "i"
 local formatFunTime = "%04.4f"
 local formatFunRelative = "%03.1f"
-local formatFunCount = "%"..(callWidth - 1).."i"
+local formatFunCount = "%" .. (callWidth - 1) .. "i"
 local formatHeader = string.format(formatOutputHeader, "FILE", "FUNCTION", "LINE", "TIME", "%", "#")
-
 
 ---------------------------------------|
 --- Locals
@@ -74,16 +94,12 @@ local function functionReport(information)
     name = string.sub(name, 1, #name - 2)
   end
 
-  local title = string.format(formatOutputTitle,
-    src, name,
-  string.format(formatFunLine, information.linedefined or 0))
+  local title = string.format(formatOutputTitle, src, name, string.format(formatFunLine, information.linedefined or 0))
 
   local funcReport = TABL_REPORT_CACHE[title]
   if not funcReport then
     funcReport = {
-      title = string.format(formatOutputTitle,
-        src, name,
-      string.format(formatFunLine, information.linedefined or 0)),
+      title = string.format(formatOutputTitle, src, name, string.format(formatFunLine, information.linedefined or 0)),
       count = 0,
       timer = 0,
     }
@@ -113,20 +129,21 @@ local function charRepetition(n, character)
   local s = ""
   character = character or " "
   for _ = 1, n do
-    s = s..character
+    s = s .. character
   end
   return s
 end
 
 local function singleSearchReturn(str, search)
   for _ in string.gmatch(str, search) do
-    do return true end
+    do
+      return true
+    end
   end
   return false
 end
 
-local divider = charRepetition(#formatHeader - 1, "-").."\n"
-
+local divider = charRepetition(#formatHeader - 1, "-") .. "\n"
 
 ---------------------------------------|
 --- Functions
@@ -169,20 +186,22 @@ function module.report(filename)
 
   if reportCount > 0 then
     filename = filename or "profiler.log"
-    table.sort(TABL_REPORTS, function(a, b) return a.timer > b.timer end)
+    table.sort(TABL_REPORTS, function(a, b)
+      return a.timer > b.timer
+    end)
     local file = io.open(filename, "w+")
 
     if reportCount > 0 then
       local divide = false
       local totalTime = stopTime - startTime
-      local totalTimeOutput = " > "..string.format(formatTotalTime, totalTime)
+      local totalTimeOutput = " > " .. string.format(formatTotalTime, totalTime)
 
       file:write(totalTimeOutput)
       if printFun ~= nil then
         printFun(totalTimeOutput)
       end
 
-      file:write("\n"..divider)
+      file:write("\n" .. divider)
       file:write(formatHeader)
       file:write(divider)
 
@@ -228,23 +247,19 @@ function module.report(filename)
             if printFun ~= nil and verbosePrint == true then
               printFun(outputLine)
             end
-
           end
         end
       end
 
       file:write(divider)
-
     end
 
     file:close()
 
     if printFun ~= nil then
-      printFun(reportSaved.."'"..filename.."'")
+      printFun(reportSaved .. "'" .. filename .. "'")
     end
-
   end
-
 end
 
 --- End

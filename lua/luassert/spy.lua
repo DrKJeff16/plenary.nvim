@@ -1,6 +1,6 @@
 -- module will return spy table, and register its assertions with the main assert engine
-local assert = require('luassert.assert')
-local util = require('luassert.util')
+local assert = require("luassert.assert")
+local util = require("luassert.util")
 
 -- Spy metatable
 local spy_mt = {
@@ -13,10 +13,10 @@ local spy_mt = {
       return ...
     end
     return get_returns(self.callback(...))
-  end
+  end,
 }
 
-local spy   -- must make local before defining table, because table contents refers to the table (recursion)
+local spy -- must make local before defining table, because table contents refers to the table (recursion)
 spy = {
   new = function(callback)
     callback = callback or function() end
@@ -49,7 +49,9 @@ spy = {
 
       called = function(self, times, compare)
         if times or compare then
-          local compare = compare or function(count, expected) return count == expected end
+          local compare = compare or function(count, expected)
+            return count == expected
+          end
           return compare(#self.calls, times), #self.calls
         end
 
@@ -78,9 +80,9 @@ spy = {
           return true, matching_returnvallists.vals
         end
         return false, last_returnvallist
-      end
+      end,
     }, spy_mt)
-    assert:add_spy(s)  -- register with the current state
+    assert:add_spy(s) -- register with the current state
     return s
   end,
 
@@ -96,7 +98,7 @@ spy = {
     s.target_key = target_key
 
     return s
-  end
+  end,
 }
 
 local function set_spy(state, arguments, level)
@@ -153,7 +155,10 @@ local function called(state, arguments, level, compare)
     arguments.nofmt[2] = true
     return result
   elseif payload and type(payload) == "function" then
-    error("When calling 'spy(aspy)', 'aspy' must not be the original function, but the spy function replacing the original", level)
+    error(
+      "When calling 'spy(aspy)', 'aspy' must not be the original function, but the spy function replacing the original",
+      level
+    )
   else
     error("'called' must be chained after 'spy(aspy)'", level)
   end
@@ -161,35 +166,79 @@ end
 
 local function called_at_least(state, arguments, level)
   local level = (level or 1) + 1
-  return called(state, arguments, level, function(count, expected) return count >= expected end)
+  return called(state, arguments, level, function(count, expected)
+    return count >= expected
+  end)
 end
 
 local function called_at_most(state, arguments, level)
   local level = (level or 1) + 1
-  return called(state, arguments, level, function(count, expected) return count <= expected end)
+  return called(state, arguments, level, function(count, expected)
+    return count <= expected
+  end)
 end
 
 local function called_more_than(state, arguments, level)
   local level = (level or 1) + 1
-  return called(state, arguments, level, function(count, expected) return count > expected end)
+  return called(state, arguments, level, function(count, expected)
+    return count > expected
+  end)
 end
 
 local function called_less_than(state, arguments, level)
   local level = (level or 1) + 1
-  return called(state, arguments, level, function(count, expected) return count < expected end)
+  return called(state, arguments, level, function(count, expected)
+    return count < expected
+  end)
 end
 
 assert:register("modifier", "spy", set_spy)
-assert:register("assertion", "returned_with", returned_with, "assertion.returned_with.positive", "assertion.returned_with.negative")
-assert:register("assertion", "called_with", called_with, "assertion.called_with.positive", "assertion.called_with.negative")
+assert:register(
+  "assertion",
+  "returned_with",
+  returned_with,
+  "assertion.returned_with.positive",
+  "assertion.returned_with.negative"
+)
+assert:register(
+  "assertion",
+  "called_with",
+  called_with,
+  "assertion.called_with.positive",
+  "assertion.called_with.negative"
+)
 assert:register("assertion", "called", called, "assertion.called.positive", "assertion.called.negative")
-assert:register("assertion", "called_at_least", called_at_least, "assertion.called_at_least.positive", "assertion.called_less_than.positive")
-assert:register("assertion", "called_at_most", called_at_most, "assertion.called_at_most.positive", "assertion.called_more_than.positive")
-assert:register("assertion", "called_more_than", called_more_than, "assertion.called_more_than.positive", "assertion.called_at_most.positive")
-assert:register("assertion", "called_less_than", called_less_than, "assertion.called_less_than.positive", "assertion.called_at_least.positive")
+assert:register(
+  "assertion",
+  "called_at_least",
+  called_at_least,
+  "assertion.called_at_least.positive",
+  "assertion.called_less_than.positive"
+)
+assert:register(
+  "assertion",
+  "called_at_most",
+  called_at_most,
+  "assertion.called_at_most.positive",
+  "assertion.called_more_than.positive"
+)
+assert:register(
+  "assertion",
+  "called_more_than",
+  called_more_than,
+  "assertion.called_more_than.positive",
+  "assertion.called_at_most.positive"
+)
+assert:register(
+  "assertion",
+  "called_less_than",
+  called_less_than,
+  "assertion.called_less_than.positive",
+  "assertion.called_at_least.positive"
+)
 
 return setmetatable(spy, {
   __call = function(self, ...)
     return spy.new(...)
-  end
+  end,
 })

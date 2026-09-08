@@ -6,10 +6,10 @@
 -- 3) level The level of the error position relative to the called function
 -- returns; boolean; whether assertion passed
 
-local assert = require('luassert.assert')
-local astate = require ('luassert.state')
-local util = require ('luassert.util')
-local s = require('say')
+local assert = require("luassert.assert")
+local astate = require("luassert.state")
+local util = require("luassert.util")
+local s = require("say")
 
 local function format(val)
   return astate.format_argument(val) or tostring(val)
@@ -34,7 +34,7 @@ local function unique(state, arguments, level)
     end
     set_failure_message(state, arguments[2])
   end
-  for k,v in pairs(list) do
+  for k, v in pairs(list) do
     for k2, v2 in pairs(list) do
       if k ~= k2 then
         if deep and util.deepcompare(v, v2, true) then
@@ -81,9 +81,11 @@ local function matches(state, arguments, level)
   end
   local err_message
   local init_arg_num = 3
-  for i=3,argcnt,1 do
+  for i = 3, argcnt, 1 do
     if arguments[i] and type(arguments[i]) ~= "boolean" and not tonumber(arguments[i]) then
-      if i == 3 then init_arg_num = init_arg_num + 1 end
+      if i == 3 then
+        init_arg_num = init_arg_num + 1
+      end
       err_message = util.tremove(arguments, i)
       break
     end
@@ -91,9 +93,17 @@ local function matches(state, arguments, level)
   local init = arguments[3]
   local plain = arguments[4]
   local stringtype = "string or object convertible to a string"
-  assert(type(pattern) == "string", s("assertion.internal.badargtype", { 1, "matches", "string", type(arguments[1]) }), level)
+  assert(
+    type(pattern) == "string",
+    s("assertion.internal.badargtype", { 1, "matches", "string", type(arguments[1]) }),
+    level
+  )
   assert(actual, s("assertion.internal.badargtype", { 2, "matches", stringtype, format(arguments[2]) }), level)
-  assert(init == nil or tonumber(init), s("assertion.internal.badargtype", { init_arg_num, "matches", "number", type(arguments[3]) }), level)
+  assert(
+    init == nil or tonumber(init),
+    s("assertion.internal.badargtype", { init_arg_num, "matches", "number", type(arguments[3]) }),
+    level
+  )
   -- switch arguments for proper output message
   util.tinsert(arguments, 1, util.tremove(arguments, 2))
   set_failure_message(state, err_message)
@@ -113,7 +123,7 @@ local function equals(state, arguments, level)
   local level = (level or 1) + 1
   local argcnt = arguments.n
   assert(argcnt > 1, s("assertion.internal.argtolittle", { "equals", 2, tostring(argcnt) }), level)
-  local result =  arguments[1] == arguments[2]
+  local result = arguments[1] == arguments[2]
   -- switch arguments for proper output message
   util.tinsert(arguments, 1, util.tremove(arguments, 2))
   set_failure_message(state, arguments[3])
@@ -124,7 +134,7 @@ local function same(state, arguments, level)
   local level = (level or 1) + 1
   local argcnt = arguments.n
   assert(argcnt > 1, s("assertion.internal.argtolittle", { "same", 2, tostring(argcnt) }), level)
-  if type(arguments[1]) == 'table' and type(arguments[2]) == 'table' then
+  if type(arguments[1]) == "table" and type(arguments[2]) == "table" then
     local result, crumbs = util.deepcompare(arguments[1], arguments[2], true)
     -- switch arguments for proper output message
     util.tinsert(arguments, 1, util.tremove(arguments, 2))
@@ -160,17 +170,21 @@ local function has_error(state, arguments, level)
   local func = arguments[1]
   local err_expected = arguments[2]
   local failure_message = arguments[3]
-  assert(util.callable(func), s("assertion.internal.badargtype", { 1, "error", "function or callable object", type(func) }), level)
+  assert(
+    util.callable(func),
+    s("assertion.internal.badargtype", { 1, "error", "function or callable object", type(func) }),
+    level
+  )
   local ok, err_actual = pcall(func)
-  if type(err_actual) == 'string' then
+  if type(err_actual) == "string" then
     -- remove 'path/to/file:line: ' from string
-    err_actual = err_actual:gsub('^.-:%d+: ', '', 1)
+    err_actual = err_actual:gsub("^.-:%d+: ", "", 1)
   end
   retargs[1] = err_actual
   arguments.nofmt = {}
   arguments.n = 2
-  arguments[1] = (ok and '(no error)' or err_actual)
-  arguments[2] = (err_expected == nil and '(error)' or err_expected)
+  arguments[1] = (ok and "(no error)" or err_actual)
+  arguments[2] = (err_expected == nil and "(error)" or err_expected)
   arguments.nofmt[1] = ok
   arguments.nofmt[2] = (err_expected == nil)
   set_failure_message(state, failure_message)
@@ -178,21 +192,21 @@ local function has_error(state, arguments, level)
   if ok or err_expected == nil then
     return not ok, retargs
   end
-  if type(err_expected) == 'string' then
+  if type(err_expected) == "string" then
     -- err_actual must be (convertible to) a string
     if util.hastostring(err_actual) then
       err_actual = tostring(err_actual)
       retargs[1] = err_actual
     end
-    if type(err_actual) == 'string' then
+    if type(err_actual) == "string" then
       return err_expected == err_actual, retargs
     end
-  elseif type(err_expected) == 'number' then
-    if type(err_actual) == 'string' then
+  elseif type(err_expected) == "number" then
+    if type(err_actual) == "string" then
       return tostring(err_expected) == tostring(tonumber(err_actual)), retargs
     end
   end
-  return same(state, {err_expected, err_actual, ["n"] = 2}), retargs
+  return same(state, { err_expected, err_actual, ["n"] = 2 }), retargs
 end
 
 local function error_matches(state, arguments, level)
@@ -202,49 +216,63 @@ local function error_matches(state, arguments, level)
   local func = arguments[1]
   local pattern = arguments[2]
   assert(argcnt > 1, s("assertion.internal.argtolittle", { "error_matches", 2, tostring(argcnt) }), level)
-  assert(util.callable(func), s("assertion.internal.badargtype", { 1, "error_matches", "function or callable object", type(func) }), level)
-  assert(pattern == nil or type(pattern) == "string", s("assertion.internal.badargtype", { 2, "error", "string", type(pattern) }), level)
+  assert(
+    util.callable(func),
+    s("assertion.internal.badargtype", { 1, "error_matches", "function or callable object", type(func) }),
+    level
+  )
+  assert(
+    pattern == nil or type(pattern) == "string",
+    s("assertion.internal.badargtype", { 2, "error", "string", type(pattern) }),
+    level
+  )
 
   local failure_message
   local init_arg_num = 3
-  for i=3,argcnt,1 do
+  for i = 3, argcnt, 1 do
     if arguments[i] and type(arguments[i]) ~= "boolean" and not tonumber(arguments[i]) then
-      if i == 3 then init_arg_num = init_arg_num + 1 end
+      if i == 3 then
+        init_arg_num = init_arg_num + 1
+      end
       failure_message = util.tremove(arguments, i)
       break
     end
   end
   local init = arguments[3]
   local plain = arguments[4]
-  assert(init == nil or tonumber(init), s("assertion.internal.badargtype", { init_arg_num, "matches", "number", type(arguments[3]) }), level)
+  assert(
+    init == nil or tonumber(init),
+    s("assertion.internal.badargtype", { init_arg_num, "matches", "number", type(arguments[3]) }),
+    level
+  )
 
   local ok, err_actual = pcall(func)
-  if type(err_actual) == 'string' then
+  if type(err_actual) == "string" then
     -- remove 'path/to/file:line: ' from string
-    err_actual = err_actual:gsub('^.-:%d+: ', '', 1)
+    err_actual = err_actual:gsub("^.-:%d+: ", "", 1)
   end
   retargs[1] = err_actual
   arguments.nofmt = {}
   arguments.n = 2
-  arguments[1] = (ok and '(no error)' or err_actual)
+  arguments[1] = (ok and "(no error)" or err_actual)
   arguments[2] = pattern
   arguments.nofmt[1] = ok
   arguments.nofmt[2] = false
   set_failure_message(state, failure_message)
 
-  if ok then return not ok, retargs end
+  if ok then
+    return not ok, retargs
+  end
   if err_actual == nil and pattern == nil then
     return true, {}
   end
 
   -- err_actual must be (convertible to) a string
-  if util.hastostring(err_actual) or
-     type(err_actual) == "number" or
-     type(err_actual) == "boolean" then
+  if util.hastostring(err_actual) or type(err_actual) == "number" or type(err_actual) == "boolean" then
     err_actual = tostring(err_actual)
     retargs[1] = err_actual
   end
-  if type(err_actual) == 'string' then
+  if type(err_actual) == "string" then
     local ok
     local retargs_ok
     if plain then
@@ -254,7 +282,9 @@ local function error_matches(state, arguments, level)
       retargs_ok = { err_actual:match(pattern, init) }
       ok = (retargs_ok[1] ~= nil)
     end
-    if ok then retargs = retargs_ok end
+    if ok then
+      retargs = retargs_ok
+    end
     return ok, retargs
   end
 
@@ -287,7 +317,9 @@ local function returned_arguments(state, arguments, level)
   arguments.nofmt = arguments.nofmt or {}
   arguments.nofmt[1] = true
   arguments.nofmt[2] = true
-  if arguments.n < 2 then arguments.n = 2 end
+  if arguments.n < 2 then
+    arguments.n = 2
+  end
   return arguments[1] == arguments[2]
 end
 
@@ -295,14 +327,30 @@ local function set_message(state, arguments, level)
   state.failure_message = arguments[1]
 end
 
-local function is_boolean(state, arguments, level)  return is_type(state, arguments, level, "boolean")  end
-local function is_number(state, arguments, level)   return is_type(state, arguments, level, "number")   end
-local function is_string(state, arguments, level)   return is_type(state, arguments, level, "string")   end
-local function is_table(state, arguments, level)    return is_type(state, arguments, level, "table")    end
-local function is_nil(state, arguments, level)      return is_type(state, arguments, level, "nil")      end
-local function is_userdata(state, arguments, level) return is_type(state, arguments, level, "userdata") end
-local function is_function(state, arguments, level) return is_type(state, arguments, level, "function") end
-local function is_thread(state, arguments, level)   return is_type(state, arguments, level, "thread")   end
+local function is_boolean(state, arguments, level)
+  return is_type(state, arguments, level, "boolean")
+end
+local function is_number(state, arguments, level)
+  return is_type(state, arguments, level, "number")
+end
+local function is_string(state, arguments, level)
+  return is_type(state, arguments, level, "string")
+end
+local function is_table(state, arguments, level)
+  return is_type(state, arguments, level, "table")
+end
+local function is_nil(state, arguments, level)
+  return is_type(state, arguments, level, "nil")
+end
+local function is_userdata(state, arguments, level)
+  return is_type(state, arguments, level, "userdata")
+end
+local function is_function(state, arguments, level)
+  return is_type(state, arguments, level, "function")
+end
+local function is_thread(state, arguments, level)
+  return is_type(state, arguments, level, "thread")
+end
 
 assert:register("modifier", "message", set_message)
 assert:register("assertion", "true", is_true, "assertion.same.positive", "assertion.same.negative")
@@ -315,7 +363,13 @@ assert:register("assertion", "nil", is_nil, "assertion.same.positive", "assertio
 assert:register("assertion", "userdata", is_userdata, "assertion.same.positive", "assertion.same.negative")
 assert:register("assertion", "function", is_function, "assertion.same.positive", "assertion.same.negative")
 assert:register("assertion", "thread", is_thread, "assertion.same.positive", "assertion.same.negative")
-assert:register("assertion", "returned_arguments", returned_arguments, "assertion.returned_arguments.positive", "assertion.returned_arguments.negative")
+assert:register(
+  "assertion",
+  "returned_arguments",
+  returned_arguments,
+  "assertion.returned_arguments.positive",
+  "assertion.returned_arguments.negative"
+)
 
 assert:register("assertion", "same", same, "assertion.same.positive", "assertion.same.negative")
 assert:register("assertion", "matches", matches, "assertion.matches.positive", "assertion.matches.negative")

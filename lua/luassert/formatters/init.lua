@@ -1,28 +1,32 @@
 -- module will not return anything, only register formatters with the main assert engine
-local assert = require('luassert.assert')
-local match = require('luassert.match')
-local util = require('luassert.util')
+local assert = require("luassert.assert")
+local match = require("luassert.match")
+local util = require("luassert.util")
 
-local isatty, colors do
-  local ok, term = pcall(require, 'term')
-  isatty = io.type(io.stdout) == 'file' and ok and term.isatty(io.stdout)
+local isatty, colors
+do
+  local ok, term = pcall(require, "term")
+  isatty = io.type(io.stdout) == "file" and ok and term.isatty(io.stdout)
   if not isatty then
-    local isWindows = package.config:sub(1,1) == '\\'
+    local isWindows = package.config:sub(1, 1) == "\\"
     if isWindows and os.getenv("ANSICON") then
       isatty = true
     end
   end
 
   colors = setmetatable({
-    none = function(c) return c end
-  },{ __index = function(self, key)
-    return function(c)
-      for token in key:gmatch("[^%.]+") do
-        c = term.colors[token](c)
-      end
+    none = function(c)
       return c
-    end
-  end
+    end,
+  }, {
+    __index = function(self, key)
+      return function(c)
+        for token in key:gmatch("[^%.]+") do
+          c = term.colors[token](c)
+        end
+        return c
+      end
+    end,
   })
 end
 
@@ -40,9 +44,9 @@ local function tostr(arg)
 
   if arg ~= arg then
     return "NaN"
-  elseif arg == 1/0 then
+  elseif arg == 1 / 0 then
     return "Inf"
-  elseif arg == -1/0 then
+  elseif arg == -1 / 0 then
     return "-Inf"
   end
 
@@ -82,7 +86,7 @@ local type_priorities = {
   table = 4,
   ["function"] = 5,
   userdata = 6,
-  thread = 7
+  thread = 7,
 }
 
 local function is_in_array_part(key, length)
@@ -109,7 +113,7 @@ local function get_sorted_keys(t)
       if type1 == "string" or type1 == "number" then
         return key1 < key2
       elseif type1 == "boolean" then
-        return key1  -- put true before false
+        return key1 -- put true before false
       end
     else
       return priority1 < priority2
@@ -173,11 +177,11 @@ local function fmt_table(arg, fmtargs)
       if type(v) == "table" then
         v = ft(v, l + 1, use_crumbs)
       elseif type(v) == "string" then
-        v = "'"..v.."'"
+        v = "'" .. v .. "'"
       end
 
       local ch = use_crumbs and errchar or ""
-      local indent = string.rep(" ",l * 2 - ch:len())
+      local indent = string.rep(" ", l * 2 - ch:len())
       local mark = (ch:len() == 0 and "" or colors[errcolor](ch))
       result = result .. string.format("\n%s%s[%s] = %s", indent, mark, tostr(k), tostr(v))
     end
@@ -193,7 +197,12 @@ end
 local function fmt_function(arg)
   if type(arg) == "function" then
     local debug_info = debug.getinfo(arg)
-    return string.format("%s @ line %s in %s", tostring(arg), tostring(debug_info.linedefined), tostring(debug_info.source))
+    return string.format(
+      "%s @ line %s in %s",
+      tostring(arg),
+      tostring(debug_info.linedefined),
+      tostring(debug_info.source)
+    )
   end
 end
 
@@ -219,12 +228,9 @@ local function fmt_matcher(arg)
   }
   local args = {}
   for idx = 1, arg.arguments.n do
-    table.insert(args, assert:format({ arg.arguments[idx], n = 1, })[1])
+    table.insert(args, assert:format({ arg.arguments[idx], n = 1 })[1])
   end
-  return string.format("(matcher) %s%s(%s)",
-                       not_inverted[arg.mod],
-                       tostring(arg.name),
-                       table.concat(args, ", "))
+  return string.format("(matcher) %s%s(%s)", not_inverted[arg.mod], tostring(arg.name), table.concat(args, ", "))
 end
 
 local function fmt_arglist(arglist)
@@ -233,7 +239,7 @@ local function fmt_arglist(arglist)
   end
   local formatted_vals = {}
   for idx = 1, arglist.n do
-    table.insert(formatted_vals, assert:format({ arglist[idx], n = 1, })[1])
+    table.insert(formatted_vals, assert:format({ arglist[idx], n = 1 })[1])
   end
   return "(values list) (" .. table.concat(formatted_vals, ", ") .. ")"
 end

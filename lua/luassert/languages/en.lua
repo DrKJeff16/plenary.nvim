@@ -1,6 +1,6 @@
-local s = require('say')
+local s = require("say")
 
-s:set_namespace('en')
+s:set_namespace("en")
 
 s:set("assertion.same.positive", "Expected objects to be the same.\nPassed in:\n%s\nExpected:\n%s")
 s:set("assertion.same.negative", "Expected objects to not be the same.\nPassed in:\n%s\nDid not expect:\n%s")
@@ -34,11 +34,23 @@ s:set("assertion.called_at_most.positive", "Expected to be called at most %s tim
 s:set("assertion.called_more_than.positive", "Expected to be called more than %s time(s), but was called %s time(s)")
 s:set("assertion.called_less_than.positive", "Expected to be called less than %s time(s), but was called %s time(s)")
 
-s:set("assertion.called_with.positive", "Function was never called with matching arguments.\nCalled with (last call if any):\n%s\nExpected:\n%s")
-s:set("assertion.called_with.negative", "Function was called with matching arguments at least once.\nCalled with (last matching call):\n%s\nDid not expect:\n%s")
+s:set(
+  "assertion.called_with.positive",
+  "Function was never called with matching arguments.\nCalled with (last call if any):\n%s\nExpected:\n%s"
+)
+s:set(
+  "assertion.called_with.negative",
+  "Function was called with matching arguments at least once.\nCalled with (last matching call):\n%s\nDid not expect:\n%s"
+)
 
-s:set("assertion.returned_with.positive", "Function never returned matching arguments.\nReturned (last call if any):\n%s\nExpected:\n%s")
-s:set("assertion.returned_with.negative", "Function returned matching arguments at least once.\nReturned (last matching call):\n%s\nDid not expect:\n%s")
+s:set(
+  "assertion.returned_with.positive",
+  "Function never returned matching arguments.\nReturned (last call if any):\n%s\nExpected:\n%s"
+)
+s:set(
+  "assertion.returned_with.negative",
+  "Function returned matching arguments at least once.\nReturned (last matching call):\n%s\nDid not expect:\n%s"
+)
 
 s:set("assertion.returned_arguments.positive", "Expected to be called with %s argument(s), but was called with %s")
 s:set("assertion.returned_arguments.negative", "Expected not to be called with %s argument(s), but was called with %s")

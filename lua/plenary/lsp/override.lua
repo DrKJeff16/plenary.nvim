@@ -1,5 +1,4 @@
-local vim = vim
-
+---@class plenary.Lsp.Override
 local M = {}
 
 M._original_functions = {}

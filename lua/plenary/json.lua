@@ -2,14 +2,13 @@
 
 local singleComment = "singleComment"
 local multiComment = "multiComment"
+
 local function stripWithoutWhitespace()
   return ""
 end
 
 local function slice(str, from, to)
-  from = from or 1
-  to = to or #str
-  return str:sub(from, to)
+  return str:sub(from or 1, to or str:len())
 end
 
 local function stripWithWhitespace(str, from, to)
@@ -47,7 +46,7 @@ function M.json_strip_comments(json_string, options)
   local skip = false
   local lastComma = 0
 
-  for i = 1, #json_string, 1 do
+  for i = 1, json_string:len(), 1 do
     if skip then
       skip = false
     else

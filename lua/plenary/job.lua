@@ -1,6 +1,4 @@
-local vim = vim
 local uv = vim.uv or vim.loop
-local compat = require("plenary.compat")
 
 local F = require("plenary.functional")
 
@@ -28,8 +26,8 @@ local F = require("plenary.functional")
 ---@field on_stdout? fun(error: string, data: string, self?: Job)
 ---@field skip_validation? boolean Skip validating the arguments
 ---@field writer? Job|table|string Job that writes to stdin of this job.
-local Job = {}
-Job.__index = Job
+local M = {}
+M.__index = M
 
 ---@param j Job
 ---@param key "handle"|"stderr"|"stdin"|"stdout"
@@ -92,7 +90,7 @@ end
 ---Create a new job
 ---@param o Job
 ---@return Job obj
-function Job:new(o)
+function M:new(o)
   if not o then
     error(debug.traceback("Options are required for Job:new"))
   end
@@ -175,7 +173,7 @@ function Job:new(o)
   return setmetatable(obj, self)
 end
 
-function Job:_reset()
+function M:_reset()
   self.is_shutdown = nil
 
   if self._shutdown_check and uv.is_active(self._shutdown_check) and not uv.is_closing(self._shutdown_check) then
@@ -202,14 +200,14 @@ function Job:_reset()
 end
 
 --- Stop a job and close all handles
-function Job:_stop()
+function M:_stop()
   close_safely(self, "stdin")
   close_safely(self, "stderr")
   close_safely(self, "stdout")
   close_safely(self, "handle")
 end
 
-function Job:_pipes_are_closed(options)
+function M:_pipes_are_closed(options)
   for _, pipe in ipairs({ options.stdin, options.stdout, options.stderr }) do
     if pipe and not uv.is_closing(pipe) then
       return false
@@ -219,7 +217,7 @@ function Job:_pipes_are_closed(options)
 end
 
 --- Shutdown a job.
-function Job:shutdown(code, signal)
+function M:shutdown(code, signal)
   if self._shutdown_check and uv.is_active(self._shutdown_check) then
     -- shutdown has already started
     return
@@ -228,7 +226,7 @@ function Job:shutdown(code, signal)
   self:_shutdown(code, signal)
 end
 
-function Job:_shutdown(code, signal)
+function M:_shutdown(code, signal)
   if self.is_shutdown then
     return
   end
@@ -268,7 +266,7 @@ function Job:_shutdown(code, signal)
   self._stderr_reader = nil
 end
 
-function Job:_create_uv_options()
+function M:_create_uv_options()
   local options = {}
 
   options.command = self.command
@@ -383,11 +381,11 @@ end
 
 --- Stop previous execution and add new pipes.
 --- Also regenerates pipes of writer.
-function Job:_prepare_pipes()
+function M:_prepare_pipes()
   self:_stop()
 
   if self.writer then
-    if Job.is_job(self.writer) then
+    if M.is_job(self.writer) then
       self.writer:_prepare_pipes()
       self.stdin = self.writer.stdout
     elseif self.writer.write then
@@ -404,7 +402,7 @@ function Job:_prepare_pipes()
 end
 
 --- Execute job. Should be called only after preprocessing is done.
-function Job:_execute()
+function M:_execute()
   local options = self:_create_uv_options()
 
   if self._user_on_start then
@@ -426,9 +424,9 @@ function Job:_execute()
   end
 
   if self.writer then
-    if Job.is_job(self.writer) then
+    if M.is_job(self.writer) then
       self.writer:_execute()
-    elseif type(self.writer) == "table" and compat.islist(self.writer) then
+    elseif type(self.writer) == "table" and require("plenary.compat").islist(self.writer) then
       local writer_len = #self.writer
       for i, v in ipairs(self.writer) do
         self.stdin:write(v)
@@ -454,34 +452,34 @@ function Job:_execute()
   return self
 end
 
-function Job:start()
+function M:start()
   self:_reset()
   self:_prepare_pipes()
   self:_execute()
 end
 
-function Job:sync(timeout, wait_interval)
+function M:sync(timeout, wait_interval)
   self:start()
   self:wait(timeout, wait_interval)
 
   return self.enable_recording and self:result() or nil, self.code
 end
 
-function Job:result()
+function M:result()
   assert(self.enable_recording, "'enable_recording' is not enabled for this job.")
   return self._stdout_results
 end
 
-function Job:stderr_result()
+function M:stderr_result()
   assert(self.enable_recording, "'enable_recording' is not enabled for this job.")
   return self._stderr_results
 end
 
-function Job:pid()
+function M:pid()
   return self.pid
 end
 
-function Job:wait(timeout, wait_interval, should_redraw)
+function M:wait(timeout, wait_interval, should_redraw)
   timeout = timeout or 5000
   wait_interval = wait_interval or 10
 
@@ -516,7 +514,7 @@ end
 
 ---@param wait_time? integer
 ---@return Job|nil self
-function Job:co_wait(wait_time)
+function M:co_wait(wait_time)
   wait_time = wait_time or 5
 
   if not self.handle then
@@ -535,7 +533,7 @@ end
 
 --- Wait for all jobs to complete
 ---@param ... any
-function Job.join(...)
+function M.join(...)
   local jobs_to_wait = { ... }
   local num_jobs = #jobs_to_wait
 
@@ -564,27 +562,27 @@ local _request_id = 0
 local _request_status = {} ---@type table<integer, boolean>
 
 ---@param next_job Job
-function Job:and_then(next_job)
+function M:and_then(next_job)
   self:add_on_exit_callback(function()
     next_job:start()
   end)
 end
 
 ---@param next_job Job
-function Job:and_then_wrap(next_job)
+function M:and_then_wrap(next_job)
   self:add_on_exit_callback(vim.schedule_wrap(function()
     next_job:start()
   end))
 end
 
 ---@param fn function
-function Job:after(fn)
+function M:after(fn)
   self:add_on_exit_callback(fn)
   return self
 end
 
 ---@param next_job Job
-function Job:and_then_on_success(next_job)
+function M:and_then_on_success(next_job)
   self:add_on_exit_callback(function(_, code)
     if code == 0 then
       next_job:start()
@@ -593,7 +591,7 @@ function Job:and_then_on_success(next_job)
 end
 
 ---@param next_job Job
-function Job:and_then_on_success_wrap(next_job)
+function M:and_then_on_success_wrap(next_job)
   self:add_on_exit_callback(vim.schedule_wrap(function(_, code)
     if code == 0 then
       next_job:start()
@@ -602,7 +600,7 @@ function Job:and_then_on_success_wrap(next_job)
 end
 
 ---@param fn function
-function Job:after_success(fn)
+function M:after_success(fn)
   self:add_on_exit_callback(function(j, code, signal)
     if code == 0 then
       fn(j, code, signal)
@@ -611,7 +609,7 @@ function Job:after_success(fn)
 end
 
 ---@param next_job Job
-function Job:and_then_on_failure(next_job)
+function M:and_then_on_failure(next_job)
   self:add_on_exit_callback(function(_, code)
     if code ~= 0 then
       next_job:start()
@@ -620,7 +618,7 @@ function Job:and_then_on_failure(next_job)
 end
 
 ---@param next_job Job
-function Job:and_then_on_failure_wrap(next_job)
+function M:and_then_on_failure_wrap(next_job)
   self:add_on_exit_callback(vim.schedule_wrap(function(_, code)
     if code ~= 0 then
       next_job:start()
@@ -629,7 +627,7 @@ function Job:and_then_on_failure_wrap(next_job)
 end
 
 ---@param fn function
-function Job:after_failure(fn)
+function M:after_failure(fn)
   self:add_on_exit_callback(function(j, code, signal)
     if code ~= 0 then
       fn(j, code, signal)
@@ -639,7 +637,7 @@ end
 
 ---@param ... any
 ---@return integer id
-function Job.chain(...)
+function M.chain(...)
   _request_id = _request_id + 1
   _request_status[_request_id] = false
 
@@ -670,26 +668,26 @@ end
 
 ---@param id integer
 ---@return boolean|nil status
-function Job.chain_status(id)
+function M.chain_status(id)
   return _request_status[id]
 end
 
 ---@param item table|Job
-function Job.is_job(item)
+function M.is_job(item)
   if type(item) ~= "table" then
     return false
   end
-  return getmetatable(item) == Job
+  return getmetatable(item) == M
 end
 
 ---@param cb function
-function Job:add_on_exit_callback(cb)
+function M:add_on_exit_callback(cb)
   table.insert(self._additional_on_exit_callbacks, cb)
 end
 
 --- Send data to a job.
 ---@param data string[]|string
-function Job:send(data)
+function M:send(data)
   if not self.stdin then
     error("job has no 'stdin'. Have you run `job:start()` yet?")
   end
@@ -697,4 +695,4 @@ function Job:send(data)
   self.stdin:write(data)
 end
 
-return Job
+return M

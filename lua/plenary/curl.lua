@@ -396,8 +396,18 @@ local function partial(method)
   end
 end
 
----@return { delete: string[]|Job, get: string[]|Job, head: string[]|Job, patch: string[]|Job, post: string[]|Job, put: string[]|Job, request: string[]|Job }
-return function()
+---@class CurlValues
+---@field delete string[]|Job
+---@field get string[]|Job
+---@field head string[]|Job
+---@field patch string[]|Job
+---@field post string[]|Job
+---@field put string[]|Job
+---@field request string[]|Job
+
+---@alias plenary.Curl fun(): res: CurlValues
+
+return function() ---@type plenary.Curl
   return {
     delete = partial("delete"),
     get = partial("get"),

@@ -4,97 +4,99 @@
 ---Lua has no currying so we have to make a function for each operator.
 ---@brief ]]
 
-return {
-  ----------------------------------------------------------------------------
-  -- Comparison operators
-  ----------------------------------------------------------------------------
-  lt = function(a, b)
-    return a < b
-  end,
-  le = function(a, b)
-    return a <= b
-  end,
-  eq = function(a, b)
-    return a == b
-  end,
-  ne = function(a, b)
-    return a ~= b
-  end,
-  ge = function(a, b)
-    return a >= b
-  end,
-  gt = function(a, b)
-    return a > b
-  end,
+---@class plenary.Operators
+local M = {}
 
-  ----------------------------------------------------------------------------
-  -- Arithmetic operators
-  ----------------------------------------------------------------------------
-  add = function(a, b)
-    return a + b
-  end,
-  div = function(a, b)
-    return a / b
-  end,
-  floordiv = function(a, b)
-    return math.floor(a / b)
-  end,
-  intdiv = function(a, b)
-    local q = a / b
-    if a >= 0 then
-      return math.floor(q)
-    else
-      return math.ceil(q)
-    end
-  end,
-  mod = function(a, b)
-    return a % b
-  end,
-  mul = function(a, b)
-    return a * b
-  end,
-  neq = function(a)
-    return -a
-  end,
-  unm = function(a)
-    return -a
-  end, -- an alias
-  pow = function(a, b)
-    return a ^ b
-  end,
-  sub = function(a, b)
-    return a - b
-  end,
-  truediv = function(a, b)
-    return a / b
-  end,
+function M.lt(a, b)
+  return a < b
+end
 
-  ----------------------------------------------------------------------------
-  -- String operators
-  ----------------------------------------------------------------------------
-  concat = function(a, b)
-    return a .. b
-  end,
-  len = function(a)
-    return #a
-  end,
-  length = function(a)
-    return #a
-  end, -- an alias
+function M.le(a, b)
+  return a <= b
+end
 
-  ----------------------------------------------------------------------------
-  -- Logical operators
-  ----------------------------------------------------------------------------
-  land = function(a, b)
-    return a and b
-  end,
-  lor = function(a, b)
-    return a or b
-  end,
-  lnot = function(a)
-    return not a
-  end,
-  truth = function(a)
-    return not not a
-  end,
-}
+function M.eq(a, b)
+  return a == b
+end
+
+function M.ne(a, b)
+  return a ~= b
+end
+
+function M.ge(a, b)
+  return a >= b
+end
+
+function M.gt(a, b)
+  return a > b
+end
+
+function M.add(a, b)
+  return a + b
+end
+
+function M.div(a, b)
+  return a / b
+end
+
+function M.floordiv(a, b)
+  return math.floor(a / b)
+end
+
+function M.intdiv(a, b)
+  return a >= 0 and math.floor(a / b) or math.ceil(a / b)
+end
+
+function M.mod(a, b)
+  return a % b
+end
+
+function M.mul(a, b)
+  return a * b
+end
+
+function M.neq(a)
+  return -a
+end
+
+M.unm = M.neq
+
+function M.pow(a, b)
+  return a ^ b
+end
+
+function M.sub(a, b)
+  return a - b
+end
+
+function M.truediv(a, b)
+  return a / b
+end
+
+function M.concat(a, b)
+  return a .. b
+end
+
+function M.len(a)
+  return #a
+end
+
+M.length = M.len
+
+function M.land(a, b)
+  return a and b
+end
+
+function M.lor(a, b)
+  return a or b
+end
+
+function M.lnot(a)
+  return not a
+end
+
+function M.truth(a)
+  return not not a
+end
+
+return M

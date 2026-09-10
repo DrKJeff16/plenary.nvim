@@ -9,7 +9,7 @@
 
 local Path = require("plenary.path")
 
-local p_debug = vim.fn.getenv("DEBUG_PLENARY")
+local p_debug = vim.fn.getenv("DEBUG_PLENARY") ---@type string|boolean
 if p_debug == vim.NIL then
   p_debug = false
 end
@@ -24,6 +24,7 @@ end
 ---@field fmt_msg? fun(is_console: boolean, mode_name: string, src_path: string, src_line: integer, msg: string): str: string
 ---Should highlighting be used in console (using echohl).
 ---@field highlights? boolean
+---@field info_level? integer
 ---Any messages above this level will be logged.
 ---@field level? plenary.LogLevel
 ---Level configuration.
@@ -34,7 +35,9 @@ end
 ---Name of the plugin. Prepended to log messages.
 ---@field plugin? string
 ---Should print the output to neovim while running.
----@field use_console? "async"|"sync"|false
+---
+---Accepted values are `"async"` and `"sync"`.
+---@field use_console? boolean|string
 ---Should write to a file.
 ---
 ---Default output for logging file is `stdpath("log")/plugin.log`.
@@ -44,13 +47,13 @@ end
 
 ---@class plenary.LogDefaults: plenary.LogConfig
 ---@field float_precision number
----@field fmt_msg fun(is_console: boolean, mode_name: string, src_path: string, src_line: integer, msg: string): str: string
 ---@field highlights boolean
+---@field info_level integer
 ---@field level plenary.LogLevel
 ---@field modes { name: plenary.LogLevel, hl: string }[]
 ---@field outfile string|nil
 ---@field plugin string
----@field use_console "async"|"sync"|false
+---@field use_console boolean|string
 ---@field use_file boolean
 ---@field use_quickfix boolean
 local default_config = {
@@ -70,6 +73,12 @@ local default_config = {
     { name = "fatal", hl = "ErrorMsg" },
   },
   float_precision = 0.01,
+  ---@param is_console boolean
+  ---@param mode_name string
+  ---@param src_path string
+  ---@param src_line integer
+  ---@param msg string
+  ---@return string str
   fmt_msg = function(is_console, mode_name, src_path, src_line, msg)
     local nameupper = mode_name:upper()
     local lineinfo = src_path .. ":" .. src_line
@@ -111,15 +120,15 @@ function M.new(config, standalone)
     levels[v.name] = i
   end
 
-  ---@param x integer
-  ---@param increment integer
-  ---@return integer rounded_num
+  ---@param x number
+  ---@param increment number
+  ---@return number rounded_num
   local function round(x, increment)
     if x == 0 then
       return x
     end
     increment = increment or 1
-    x = x / increment
+    x = x / increment --[[@as integer]]
     return (x > 0 and math.floor(x + 0.5) or math.ceil(x - 0.5)) * increment
   end
 
@@ -140,18 +149,19 @@ function M.new(config, standalone)
 
   ---@param level integer
   ---@param level_config { name: plenary.LogLevel, hl: string }
+  ---@param message_maker fun(...: fun(...: any): ...): str: string
+  ---@return ...
   local function log_at_level(level, level_config, message_maker, ...)
-    -- Return early if we're below the config.level
-    if level < levels[config.level] then
+    if level < levels[config.level] then -- Return early if we're below the config.level
       return
     end
+
     local msg = message_maker(...)
     local info = debug.getinfo(config.info_level or 2, "Sl")
     local src_path = info.source:sub(2)
     local src_line = info.currentline
-    -- Output to console
-    if config.use_console then
-      local log_to_console = function()
+    if config.use_console then -- Output to console
+      local function log_to_console()
         local console_string = config.fmt_msg(true, level_config.name, src_path, src_line, msg)
         if config.highlights and level_config.hl then
           vim.cmd.echohl(level_config.hl)
@@ -160,7 +170,11 @@ function M.new(config, standalone)
         local split_console = vim.split(console_string, "\n")
         for _, v in ipairs(split_console) do
           if not (pcall(vim.cmd.echom, ("[%s] %s"):format(config.plugin, vim.fn.escape(v, [["\]])))) then
-            vim.api.nvim_out_write(msg .. "\n")
+            if vim.fn.has("nvim-0.11") == 1 then
+              vim.notify(msg .. "\n")
+            else
+              vim.api.nvim_out_write(msg .. "\n") ---@diagnostic disable-line:deprecated
+            end
           end
         end
 
@@ -208,7 +222,6 @@ function M.new(config, standalone)
 
     -- M.fmt_info("These are %s strings", "formatted")
     obj[("fmt_%s"):format(x.name)] = function(...)
-      ---@param ... string
       return log_at_level(i, x, function(...)
         local passed = { ... }
         local fmt = table.remove(passed, 1) --[[@as string]]
@@ -222,12 +235,15 @@ function M.new(config, standalone)
 
     -- M.lazy_info(expensive_to_calculate)
     obj[("lazy_%s"):format(x.name)] = function()
-      return log_at_level(i, x, function(f) ---@param f function
+      return log_at_level(i, x, function(f)
         return f()
       end)
     end
 
     -- M.file_info("do not print")
+
+    ---@param vals any[]
+    ---@param override plenary.LogConfig
     obj[("file_%s"):format(x.name)] = function(vals, override)
       local original_console = config.use_console
       config.use_console = false

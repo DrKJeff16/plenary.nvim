@@ -1,7 +1,5 @@
 local Path = require("plenary.path")
 local os_sep = Path.path.sep
-local F = require("plenary.functional")
-local compat = require("plenary.compat")
 
 local uv = vim.uv or vim.loop
 
@@ -154,26 +152,14 @@ local function process_item(opts, name, typ, current_dir, next_dir, bp, data, gi
   end
 end
 
---- M.scan_dir
 -- Search directory recursive and syncronous
--- @param path: string or table
---   string has to be a valid path
---   table has to be a array of valid paths
--- @param opts: table to change behavior
---   opts.hidden (bool):              if true hidden files will be added
---   opts.add_dirs (bool):            if true dirs will also be added to the results
---   opts.only_dirs (bool):           if true only dirs will be added to the results
---   opts.respect_gitignore (bool):   if true will only add files that are not ignored by the git
---   opts.depth (int):                depth on how deep the search should go
---   opts.search_pattern (regex):     regex for which files will be added, string, table of strings, or fn(e) -> bool
---   opts.on_insert(entry):           Will be called for each element
---   opts.silent (bool):              if true will not echo messages that are not accessible
--- @return array with files
 ---@param path string[]|string
 ---@param opts? { hidden?: boolean, add_dirs?: boolean, only_dirs?: boolean, respect_gitignore?: boolean, depth?: integer, search_pattern?: string[]|string|(fun(...: any): boolean), on_insert?: function, silent?: boolean }
+---@return string[] files
 function M.scan_dir(path, opts)
   opts = opts or {}
 
+  local compat = require("plenary.compat")
   local data = {} ---@type string[]
   local base_paths = compat.flatten({ path }) --[[@as string[]\]]
   local next_dir = compat.flatten({ path }) --[[@as string[]\]]
@@ -181,7 +167,7 @@ function M.scan_dir(path, opts)
   local match_search_pat = opts.search_pattern and gen_search_pat(opts.search_pattern) or nil
   for i = #base_paths, 1, -1 do
     if uv.fs_access(base_paths[i], "X") == false then
-      if not F.if_nil(opts.silent, false, opts.silent) then
+      if not require("plenary.functional").if_nil(opts.silent, false, opts.silent) then
         print(("%s is not accessible by the current user!"):format(base_paths[i]))
       end
       table.remove(base_paths, i)
@@ -214,6 +200,7 @@ end
 function M.scan_dir_async(path, opts)
   opts = opts or {}
 
+  local compat = require("plenary.compat")
   local data = {} ---@type string[]
   local base_paths = compat.flatten({ path }) --[[@as string[]\]]
   local next_dir = compat.flatten({ path }) --[[@as string[]\]]
@@ -227,7 +214,7 @@ function M.scan_dir_async(path, opts)
   -- Maybe obers async pr can take me out of callback hell
   for i = #base_paths, 1, -1 do
     if uv.fs_access(base_paths[i], "X") == false then
-      if not F.if_nil(opts.silent, false, opts.silent) then
+      if not require("plenary.functional").if_nil(opts.silent, false, opts.silent) then
         print(("%s is not accessible by the current user!"):format(base_paths[i]))
       end
       table.remove(base_paths, i)

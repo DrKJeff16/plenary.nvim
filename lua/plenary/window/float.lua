@@ -64,7 +64,7 @@ function win_float.centered(options)
 end
 
 ---@param top_text string[]
----@param options table<string, any>
+---@param options? table<string, any>
 function win_float.centered_with_top_win(top_text, options)
   options = tbl.apply_defaults(options, win_float.default_options)
 
@@ -142,8 +142,8 @@ end
 --                  If table, first index should be start, second_index should be end
 --@param win_opts Table
 --@param border_opts Table
----@param col_range integer[]|integer
----@param row_range integer[]|integer
+---@param col_range number[]|number
+---@param row_range number[]|number
 ---@param win_opts vim.api.keyset.win_config
 ---@param border_opts? table<string, any>
 ---@return { border_bufnr: integer, border_win_id: integer, bufnr: integer, win_id: integer } res

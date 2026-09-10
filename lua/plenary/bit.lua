@@ -126,24 +126,22 @@ LICENSE
 
 local M = { _TYPE = "module", _NAME = "bit.numberlua", _VERSION = "0.3.1.20120131" }
 
-local floor = math.floor
-
 local MOD = 2 ^ 32
 local MODM = MOD - 1
 
 local function memoize(f)
-  local mt = {}
-  local t = setmetatable({}, mt)
-  function mt:__index(k)
-    local v = f(k)
-    t[k] = v
-    return v
-  end
+  local t = setmetatable({}, {
+    __index = function(self, k)
+      local v = f(k)
+      rawset(self, k, v)
+      return v
+    end,
+  })
   return t
 end
 
 local function make_bitop_uncached(t, m)
-  local function bitop(a, b)
+  return function(a, b)
     local res, p = 0, 1
     while a ~= 0 and b ~= 0 do
       local am, bm = a % m, b % m
@@ -155,7 +153,6 @@ local function make_bitop_uncached(t, m)
     res = res + (a + b) * p
     return res
   end
-  return bitop
 end
 
 local function make_bitop(t)
@@ -174,40 +171,29 @@ function M.tobit(x)
 end
 
 M.bxor = make_bitop({ [0] = { [0] = 0, [1] = 1 }, [1] = { [0] = 1, [1] = 0 }, n = 4 })
-local bxor = M.bxor
 
 function M.bnot(a)
   return MODM - a
 end
-local bnot = M.bnot
 
 function M.band(a, b)
-  return ((a + b) - bxor(a, b)) / 2
+  return ((a + b) - M.bxor(a, b)) / 2
 end
-local band = M.band
 
 function M.bor(a, b)
-  return MODM - band(MODM - a, MODM - b)
+  return MODM - M.band(MODM - a, MODM - b)
 end
-local bor = M.bor
-
-local lshift, rshift -- forward declare
 
 function M.rshift(a, disp) -- Lua5.2 insipred
   if disp < 0 then
-    return lshift(a, -disp)
+    return M.lshift(a, -disp)
   end
-  return floor(a % 2 ^ 32 / 2 ^ disp)
+  return math.floor(a % 2 ^ 32 / 2 ^ disp)
 end
-rshift = M.rshift
 
 function M.lshift(a, disp) -- Lua5.2 inspired
-  if disp < 0 then
-    return rshift(a, -disp)
-  end
-  return (a * 2 ^ disp) % 2 ^ 32
+  return disp < 0 and M.rshift(a, -disp) or ((a * 2 ^ disp) % 2 ^ 32)
 end
-lshift = M.lshift
 
 function M.tohex(x, n) -- BitOp style
   n = n or 8
@@ -219,68 +205,61 @@ function M.tohex(x, n) -- BitOp style
     up = true
     n = -n
   end
-  x = band(x, 16 ^ n - 1)
+  x = M.band(x, 16 ^ n - 1)
   return ("%0" .. n .. (up and "X" or "x")):format(x)
 end
-local tohex = M.tohex
 
 function M.extract(n, field, width) -- Lua5.2 inspired
-  width = width or 1
-  return band(rshift(n, field), 2 ^ width - 1)
+  return M.band(M.rshift(n, field), 2 ^ (width or 1) - 1)
 end
 
 function M.replace(n, v, field, width) -- Lua5.2 inspired
-  width = width or 1
-  local mask1 = 2 ^ width - 1
-  v = band(v, mask1) -- required by spec?
-  local mask = bnot(lshift(mask1, field))
-  return band(n, mask) + lshift(v, field)
+  local mask1 = 2 ^ (width or 1) - 1
+  v = M.band(v, mask1) -- required by spec?
+  local mask = M.bnot(M.lshift(mask1, field))
+  return M.band(n, mask) + M.lshift(v, field)
 end
 
 function M.bswap(x) -- BitOp style
-  local a = band(x, 0xff)
-  x = rshift(x, 8)
-  local b = band(x, 0xff)
-  x = rshift(x, 8)
-  local c = band(x, 0xff)
-  x = rshift(x, 8)
-  local d = band(x, 0xff)
-  return lshift(lshift(lshift(a, 8) + b, 8) + c, 8) + d
+  local a = M.band(x, 0xff)
+  x = M.rshift(x, 8)
+  local b = M.band(x, 0xff)
+  x = M.rshift(x, 8)
+  local c = M.band(x, 0xff)
+  x = M.rshift(x, 8)
+  local d = M.band(x, 0xff)
+  return M.lshift(M.lshift(M.lshift(a, 8) + b, 8) + c, 8) + d
 end
-local bswap = M.bswap
 
 function M.rrotate(x, disp) -- Lua5.2 inspired
   disp = disp % 32
-  local low = band(x, 2 ^ disp - 1)
-  return rshift(x, disp) + lshift(low, 32 - disp)
+  return M.rshift(x, disp) + M.lshift(M.band(x, 2 ^ disp - 1), 32 - disp)
 end
-local rrotate = M.rrotate
 
 function M.lrotate(x, disp) -- Lua5.2 inspired
-  return rrotate(x, -disp)
+  return M.rrotate(x, -disp)
 end
-local lrotate = M.lrotate
 
 M.rol = M.lrotate -- LuaOp inspired
 M.ror = M.rrotate -- LuaOp insipred
 
 function M.arshift(x, disp) -- Lua5.2 inspired
-  local z = rshift(x, disp)
+  local z = M.rshift(x, disp)
   if x >= 0x80000000 then
-    z = z + lshift(2 ^ disp - 1, 32 - disp)
+    z = z + M.lshift(2 ^ disp - 1, 32 - disp)
   end
   return z
 end
-local arshift = M.arshift
 
 function M.btest(x, y) -- Lua5.2 inspired
-  return band(x, y) ~= 0
+  return M.band(x, y) ~= 0
 end
 
 --
 -- Start LuaBitOp "bit" compat section.
 --
 
+---@class plenary.Bit: bitlib
 M.bit = {} -- LuaBitOp "bit" compatibility
 
 function M.bit.tobit(x)
@@ -290,71 +269,67 @@ function M.bit.tobit(x)
   end
   return x
 end
-local bit_tobit = M.bit.tobit
 
 function M.bit.tohex(x, ...)
-  return tohex(x % MOD, ...)
+  return M.tohex(x % MOD, ...)
 end
 
 function M.bit.bnot(x)
-  return bit_tobit(bnot(x % MOD))
+  return M.bit.tobit(M.bnot(x % MOD))
 end
 
-local function bit_bor(a, b, c, ...)
+function M.bit.bor(a, b, c, ...)
   if c then
-    return bit_bor(bit_bor(a, b), c, ...)
-  elseif b then
-    return bit_tobit(bor(a % MOD, b % MOD))
-  else
-    return bit_tobit(a)
+    return M.bit.bor(M.bit.bor(a, b), c, ...)
   end
+  if b then
+    return M.bit.tobit(M.bor(a % MOD, b % MOD))
+  end
+  return M.bit.tobit(a)
 end
-M.bit.bor = bit_bor
 
-local function bit_band(a, b, c, ...)
+function M.bit.band(a, b, c, ...)
   if c then
-    return bit_band(bit_band(a, b), c, ...)
-  elseif b then
-    return bit_tobit(band(a % MOD, b % MOD))
-  else
-    return bit_tobit(a)
+    return M.bit_band(M.bit_band(a, b), c, ...)
   end
+  if b then
+    return M.bit_tobit(M.band(a % MOD, b % MOD))
+  end
+  return M.bit_tobit(a)
 end
-M.bit.band = bit_band
 
-local function bit_bxor(a, b, c, ...)
+function M.bit.bxor(a, b, c, ...)
   if c then
-    return bit_bxor(bit_bxor(a, b), c, ...)
-  elseif b then
-    return bit_tobit(bxor(a % MOD, b % MOD))
-  else
-    return bit_tobit(a)
+    return M.bit.bxor(M.bit.bxor(a, b), c, ...)
   end
+  if b then
+    return M.bit.tobit(M.bxor(a % MOD, b % MOD))
+  end
+  return M.bit.tobit(a)
 end
-M.bit.bxor = bit_bxor
 
 function M.bit.lshift(x, n)
-  return bit_tobit(lshift(x % MOD, n % 32))
+  return M.bit.tobit(M.lshift(x % MOD, n % 32))
 end
 
 function M.bit.rshift(x, n)
-  return bit_tobit(rshift(x % MOD, n % 32))
+  return M.bit.tobit(M.rshift(x % MOD, n % 32))
 end
 
 function M.bit.arshift(x, n)
-  return bit_tobit(arshift(x % MOD, n % 32))
+  return M.bit.tobit(M.arshift(x % MOD, n % 32))
 end
 
 function M.bit.rol(x, n)
-  return bit_tobit(lrotate(x % MOD, n % 32))
+  return M.bit.tobit(M.lrotate(x % MOD, n % 32))
 end
 
 function M.bit.ror(x, n)
-  return bit_tobit(rrotate(x % MOD, n % 32))
+  return M.bit.tobit(M.rrotate(x % MOD, n % 32))
 end
 
 function M.bit.bswap(x)
-  return bit_tobit(bswap(x % MOD))
+  return M.bit.tobit(M.bswap(x % MOD))
 end
 
 return M.bit

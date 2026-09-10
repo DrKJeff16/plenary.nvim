@@ -2,10 +2,10 @@
 --- I want them in Lua.
 
 ---@class plenary.ContextManager
-local context_manager = {}
+local M = {}
 
 ---@param obj function|thread|table
-function context_manager.with(obj, callable)
+function M.with(obj, callable)
   -- Wrap functions for people since we're nice
   if type(obj) == "function" then
     obj = coroutine.create(obj)
@@ -34,7 +34,7 @@ end
 
 --- @param filename string|{ filename: string } -- If string, used as `io.open(filename)`. Else, should be a table with `filename` as an attribute
 --- @param mode openmode
-function context_manager.open(filename, mode)
+function M.open(filename, mode)
   if type(filename) == "table" and filename.filename then
     filename = filename.filename
   end
@@ -46,4 +46,4 @@ function context_manager.open(filename, mode)
   end)
 end
 
-return context_manager
+return M

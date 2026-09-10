@@ -1,34 +1,29 @@
-local uv = vim.uv or vim.loop
-
 ---@class plenary.Profile
-local profile = {}
-
--- bundled version of upstream jit.p until LuaJIT is updated to include
--- https://github.com/LuaJIT/LuaJIT/commit/95140c50010c0557af66dac944403a1a65dd312c
-local p = require("plenary.profile.p")
+local M = {}
 
 ---start profiling using LuaJIT profiler
 ---@param out? string name and path of log file
----@param opts? table table of options
----            flame (bool, default false) write log in flamegraph format
---                   (see https://github.com/jonhoo/inferno)
-function profile.start(out, opts)
+---@param opts? { flame?: boolean }
+function M.start(out, opts)
   out = out or "profile.log"
   opts = opts or {}
   local popts = "10,i1,s,m0"
   if opts.flame then
     popts = popts .. ",G"
   end
-  p.start(popts, out)
+  require("plenary.profile.p").start(popts, out)
 end
 
 ---stop profiling
-profile.stop = p.stop
+M.stop = require("plenary.profile.p").stop
 
+---@generic V
 ---@param iterations integer
----@param f fun(...: any)
----@param ... any
-function profile.benchmark(iterations, f, ...)
+---@param f fun(...: V)
+---@param ... V
+---@return number time
+function M.benchmark(iterations, f, ...)
+  local uv = vim.uv or vim.loop
   local start_time = uv.hrtime()
   for _ = 1, iterations do
     f(...)
@@ -36,4 +31,4 @@ function profile.benchmark(iterations, f, ...)
   return (uv.hrtime() - start_time) / 1E9
 end
 
-return profile
+return M

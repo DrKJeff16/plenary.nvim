@@ -1,18 +1,16 @@
----@brief [[
 --- This module implements python-like lists. It can be used like so:
---- <pre>
 ---     local List = require 'plenary.collections.py_list'
 ---     local l = List{3, 20, 44}
 ---     print(l)  -- [3, 20, 44]
---- </pre>
----@brief ]]
+
+---The base class for all list objects
+---@class List
+---@field _len integer
 local List = {}
 
----@class List @The base class for all list objects
-
 ---List constructor. Can be used in higher order functions
----@param  tbl table: A list-like table containing the initial elements of the list
----@return List: A new list object
+---@param tbl table A list-like table containing the initial elements of the list
+---@return List obj A new list object
 function List.new(tbl)
   if type(tbl) == "table" then
     local len = #tbl
@@ -92,8 +90,8 @@ function List:pop()
 end
 
 --- Inserts other into the specified idx
---- @param idx number: The index that other will be inserted to
---- @param other any: The element to insert
+--- @param idx integer The index that other will be inserted to
+--- @param other any The element to insert
 --- @see List.remove
 function List:insert(idx, other)
   table.insert(self, idx, other)
@@ -101,8 +99,8 @@ function List:insert(idx, other)
 end
 
 --- Removes the element at index idx and returns it
---- @param idx number: The index of the element to remove
---- @return any: The element previously at index idx
+--- @param idx integer The index of the element to remove
+--- @return any element The element previously at index idx
 --- @see List.insert
 function List:remove(idx)
   self._len = self._len - 1
@@ -111,8 +109,8 @@ end
 
 --- Can be used to compare elements with any list-like table. It only checks for
 --- shallow equality
---- @param other any: The element to test for
---- @return boolean: True if other is a list object and all it's elements are equal
+--- @param other any The element to test for
+--- @return boolean res True if other is a list object and all it's elements are equal
 --- @see List.deep_equal
 function List:equal(other)
   return self:__eq(other)
@@ -133,26 +131,26 @@ end
 ---     local slice = list:slice(2, 3)
 ---     print(slice) -- [2, 3]
 --- </pre>
---- @param a number: The low end of the slice
---- @param b number: The high end of the slice
---- @return List: A list with elements between a and b
+--- @param a integer The low end of the slice
+--- @param b integer The high end of the slice
+--- @return List obj A list with elements between a and b
 function List:slice(a, b)
   return List.new(vim.list_slice(self, a, b))
 end
 
 --- Similar to slice, but with every element. It only makes a shallow copy
---- @return List: A slice from 1 to #self, i.e., a complete copy of the list
+--- @return List obj A slice from 1 to #self, i.e., a complete copy of the list
 --- @see List.deep_copy
 function List:copy()
   return self:slice(1, #self)
 end
 
 --- Similar to copy, but makes a deep copy instead
---- @return List: A deep copy of the object
+--- @return List obj A deep copy of the object
 --- @see List.copy
 --- @see vim.deep_copy
 function List:deep_copy()
-  return vim.deep_copy(self)
+  return (vim.deepcopy or vim.deep_copy)(self)
 end
 
 --- Reverses the list in place. If you don't want this, you could do something
@@ -161,12 +159,11 @@ end
 ---     local list = List{1, 2, 3, 4}
 ---     local reversed = list:copy():reverse()
 --- </pre>
---- @return List: The list itself, so you can chain method calls
+--- @return List obj The list itself, so you can chain method calls
 --- @see List.copy
 --- @see List.deep_copy
 function List:reverse()
-  local n = #self
-  local i = 1
+  local n, i = #self, 1
   while i < n do
     self[i], self[n] = self[n], self[i]
     i = i + 1
@@ -196,7 +193,7 @@ end
 
 --- Returns a list with the elements of self concatenated with those in the
 --- given arguments
---- @vararg table|List: The sequences to concatenate to this one
+--- @param ... table|List: The sequences to concatenate to this one
 --- @return List
 function List:concat(...)
   local result = self:copy()
@@ -214,71 +211,56 @@ end
 --- <pre>
 ---     other[to], other[to+1]... other[to+len] = self[from], self[from+1]... self[from+len]
 --- </pre>
---- @param from number: The first index of the origin slice
---- @param len number: The length of the slices
---- @param to number: The first index of the destination slice
+--- @param from integer The first index of the origin slice
+--- @param len integer The length of the slices
+--- @param to integer The first index of the destination slice
 --- @param other table|List: The destination list. Defaults to self
+--- @return List obj
 --- @see table.move
 function List:move(from, len, to, other)
   return table.move(self, from, len, to, other)
 end
 
 --- Packs the given elements into a list. Similar to lua 5.3's table.pack
---- @vararg any: The elements to pack
---- @return List: a list containing all the given elements
+--- @param ... any The elements to pack
+--- @return List obj a list containing all the given elements
 --- @see table.pack
 function List.pack(...)
   return List.new({ ... })
 end
 
 --- Unpacks the elements from this list and returns them
---- @return ...any: All the elements from self[1] to self[#self]
 function List:unpack()
   return unpack(self, 1, #self)
 end
 
--- Iterator stuff
+local itermetatable = getmetatable(require("plenary.iterators"):wrap())
 
-local Iter = require("plenary.iterators")
-
-local itermetatable = getmetatable(Iter:wrap())
-
+---@param param table
+---@param state integer
 local function forward_list_gen(param, state)
   state = state + 1
-  local v = param[state]
-  if v ~= nil then
-    return state, v
+  if param[state + 1] ~= nil then
+    return state, param[state + 1]
   end
 end
 
+---@param param table
+---@param state integer
 local function backward_list_gen(param, state)
   state = state - 1
-  local v = param[state]
-  if v ~= nil then
-    return state, v
+  if param[state - 1] ~= nil then
+    return state, param[state - 1]
   end
 end
 
 --- Run the given predicate through all the elements pointed by this iterator,
 --- and classify them into two lists. The first one holds the elements for which
---- predicate returned a truthy value, and the second holds the rest. For
---- example:
----
---- <pre>
----     local list = List{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
----     local evens, odds = list:iter():partition(function(e)
----         return e % 2 == 0
----     end)
----     print(evens, odds)
---- </pre>
----
---- Would print
----
---- <pre>
----     [0, 2, 4, 6, 8] [1, 3, 5, 7, 9]
---- </pre>
+--- predicate returned a truthy value, and the second holds the rest.
+---@param self Iterator
 ---@param predicate function: The predicate to classify the elements
----@return List,List
+---@return List list1
+---@return List list2
 local function partition(self, predicate)
   local list1, list2 = List.new({}), List.new({})
   for _, v in self do
@@ -292,7 +274,7 @@ local function partition(self, predicate)
 end
 
 local function wrap_iter(f, l, n)
-  local iter = Iter.wrap(f, l, n)
+  local iter = require("plenary.iterators").wrap(f, l, n)
   iter.partition = partition
   return iter
 end

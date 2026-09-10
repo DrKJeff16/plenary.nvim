@@ -1,11 +1,11 @@
 ---@class plenary.Run
 local M = {}
 
----@param title_text string
+---@param title_text string[]
 ---@param cmd string
 ---@return integer bufnr
 ---@return integer win_id
-function M.with_displayed_output(title_text, cmd, _)
+function M.with_displayed_output(title_text, cmd)
   local views = require("plenary.window.float").centered_with_top_win(title_text)
   local job_id = vim.fn.jobstart(cmd, { term = true })
   local count = 0

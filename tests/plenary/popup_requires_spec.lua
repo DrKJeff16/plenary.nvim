@@ -10,10 +10,10 @@ describe("plenary.popup", function()
   }
 
   local matches_any_import = function(line)
-    local matched = string.match(line, [[require."(.*)"]])
+    local matched = line:match([[require."(.*)"]])
     if matched and not vim.startswith(matched, "plenary.popup") then
       if not allowed_imports[matched] then
-        return true, string.format("Not an allowed import for popup: %s. Line: %s", matched, line)
+        return true, ("Not an allowed import for popup: %s. Line: %s"):format(matched, line)
       end
     end
 

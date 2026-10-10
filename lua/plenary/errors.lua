@@ -2,7 +2,7 @@
 local M = {}
 
 ---@param s string
----@param level vim.log.levels
+---@param level? vim.log.levels
 function M.traceback_error(s, level)
   error(debug.traceback() .. "\n" .. s, (level or 1) + 1)
 end

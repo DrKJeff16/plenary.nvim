@@ -77,10 +77,6 @@ end
 -- Basic Functions
 --------------------------------------------------------------------------------
 
-local function nil_gen() end
-
-local pairs_gen = pairs({})
-
 ---@generic K, V
 ---@param map table<K, V>
 ---@param key K
@@ -89,7 +85,7 @@ local pairs_gen = pairs({})
 ---@return any value
 local function map_gen(map, key)
   local value
-  key, value = pairs_gen(map, key)
+  key, value = pairs({})(map, key)
   return key, key, value
 end
 
@@ -129,7 +125,7 @@ local function rawiter(obj, param, state)
   end
   if type(obj) == "string" then
     if obj:len() == 0 then
-      return nil_gen
+      return function() end
     end
     return string_gen, obj, 0
   end
@@ -218,7 +214,7 @@ function M.range(start, stop, step)
   if not step then
     if not stop then
       if start == 0 then
-        return nil_gen
+        return function() end
       end
       stop = start
       start = stop > 0 and 1 or -1
@@ -618,7 +614,7 @@ end
 function Iterator.chain(...)
   local n = numargs(...)
   if n == 0 then
-    return M.wrap(nil_gen)
+    return M.wrap(function() end)
   end
 
   local param = { [3 * n] = 0 } ---@type table<integer, integer|function|string>
@@ -646,15 +642,10 @@ local function zip_gen_r(param, state, state_new, ...)
   local i = #state_new + 1
   local gen_x, param_x = param[2 * i - 1], param[2 * i]
   local state_x, r = gen_x(param_x, state[i])
-  if state_x == nil then
-    return
+  if state_x ~= nil then
+    table.insert(state_new, state_x)
+    return zip_gen_r(param, state, state_new, r, ...)
   end
-  table.insert(state_new, state_x)
-  return zip_gen_r(param, state, state_new, r, ...)
-end
-
-local function zip_gen(param, state)
-  return zip_gen_r(param, state, {})
 end
 
 ---Return a new iterator where i-th return value contains the i-th element from each of the iterators.
@@ -665,20 +656,17 @@ end
 function Iterator.zip(...)
   local n = numargs(...)
   if n == 0 then
-    return M.wrap(nil_gen)
+    return M.wrap(function() end)
   end
 
-  local param = { [2 * n] = 0 } ---@type table<integer, integer|function|string>
-  local state = { [n] = 0 } ---@type table<integer, integer>
+  local param, state = { [2 * n] = 0 }, { [n] = 0 } ---@type table<integer, integer|function|string>, table<integer, integer>
   for i = 1, n, 1 do
-    local it = select(n - i + 1, ...)
-    local gen_x, param_x, state_x = rawiter(it)
-    param[2 * i - 1] = gen_x
-    param[2 * i] = param_x
-    state[i] = state_x
+    param[2 * i - 1], param[2 * i], state[i] = rawiter(select(n - i + 1, ...))
   end
 
-  return M.wrap(zip_gen, param, state)
+  return M.wrap(function(_param, _state)
+    return zip_gen_r(_param, _state, {})
+  end, param, state)
 end
 
 Iterator.__div = Iterator.zip

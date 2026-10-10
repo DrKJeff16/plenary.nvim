@@ -56,7 +56,7 @@ local formatFunLine = "%" .. (lineWidth - 2) .. "i"
 local formatFunTime = "%04.4f"
 local formatFunRelative = "%03.1f"
 local formatFunCount = "%" .. (callWidth - 1) .. "i"
-local formatHeader = string.format(formatOutputHeader, "FILE", "FUNCTION", "LINE", "TIME", "%", "#")
+local formatHeader = formatOutputHeader:format("FILE", "FUNCTION", "LINE", "TIME", "%", "#")
 
 ---------------------------------------|
 --- Locals
@@ -83,23 +83,23 @@ local function functionReport(information)
   local src = information.short_src
   if src == nil then
     src = "<C>"
-  elseif string.sub(src, #src - 3, #src) == ".lua" then
-    src = string.sub(src, 1, #src - 4)
+  elseif src:sub(src:len() - 3, src:len()) == ".lua" then
+    src = src:sub(1, src:len() - 4)
   end
 
   local name = information.name
   if name == nil then
     name = "Anon"
-  elseif string.sub(name, #name - 1, #name) == "_l" then
-    name = string.sub(name, 1, #name - 2)
+  elseif name:sub(name:len() - 1, name:len()) == "_l" then
+    name = name:sub(1, name:len() - 2)
   end
 
-  local title = string.format(formatOutputTitle, src, name, string.format(formatFunLine, information.linedefined or 0))
+  local title = formatOutputTitle:format(src, name, formatFunLine:format(information.linedefined or 0))
 
   local funcReport = TABL_REPORT_CACHE[title]
   if not funcReport then
     funcReport = {
-      title = string.format(formatOutputTitle, src, name, string.format(formatFunLine, information.linedefined or 0)),
+      title = formatOutputTitle:format(src, name, formatFunLine:format(information.linedefined or 0)),
       count = 0,
       timer = 0,
     }
@@ -134,8 +134,9 @@ local function charRepetition(n, character)
   return s
 end
 
+---@param str string
 local function singleSearchReturn(str, search)
-  for _ in string.gmatch(str, search) do
+  for _ in str:gmatch(search) do
     do
       return true
     end
@@ -194,7 +195,7 @@ function module.report(filename)
     if reportCount > 0 then
       local divide = false
       local totalTime = stopTime - startTime
-      local totalTimeOutput = " > " .. string.format(formatTotalTime, totalTime)
+      local totalTimeOutput = " > " .. formatTotalTime:format(totalTime)
 
       file:write(totalTimeOutput)
       if printFun ~= nil then
@@ -225,9 +226,9 @@ function module.report(filename)
           end
 
           if printThis == true then
-            local count = string.format(formatFunCount, funcReport.count)
-            local timer = string.format(formatFunTime, funcReport.timer)
-            local relTime = string.format(formatFunRelative, (funcReport.timer / totalTime) * 100)
+            local count = formatFunCount:format(funcReport.count)
+            local timer = formatFunTime:format(funcReport.timer)
+            local relTime = formatFunRelative:format((funcReport.timer / totalTime) * 100)
             if divide == false and timer == EMPTY_TIME then
               file:write(divider)
               divide = true
@@ -240,7 +241,7 @@ function module.report(filename)
             end
 
             -- Build final line
-            local outputLine = string.format(formatOutput, funcReport.title, timer, relTime, count)
+            local outputLine = formatOutput:format(funcReport.title, timer, relTime, count)
             file:write(outputLine)
 
             -- This is a verbose print to the printFun, however maybe make this smaller for on screen debug?

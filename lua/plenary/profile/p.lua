@@ -43,11 +43,6 @@
 local jit = require("jit")
 assert(20100 <= jit.version_num and jit.version_num <= 20199, "LuaJIT core/library version mismatch: " .. jit.version)
 local profile = require("jit.profile")
-local vmdef = require("jit.vmdef")
-local math = math
-local pairs, ipairs, tonumber, floor = pairs, ipairs, tonumber, math.floor
-local sort, format = table.sort, string.format
-local stdout = io.stdout
 local zone -- Load jit.zone module on demand.
 
 -- Output file handle.
@@ -77,7 +72,7 @@ local function prof_cb(th, samples, vmmode)
   end
   if prof_fmt then
     key_stack = profile.dumpstack(th, prof_fmt, prof_depth):gsub("%[builtin#(%d+)%]", function(x)
-      return vmdef.ffnames[tonumber(x)]
+      return require("jit.vmdef").ffnames[tonumber(x)]
     end)
     if prof_split == 2 then
       local k1, k2 = key_stack:match("(.-) [<>] (.*)")
@@ -122,22 +117,22 @@ local function prof_top(count1, count2, samples, indent)
     n = n + 1
     t[n] = k
   end
-  sort(t, function(a, b)
+  table.sort(t, function(a, b)
     return count1[a] > count1[b]
   end)
   for i = 1, n do
     local k = t[i]
     local v = count1[k]
-    local pct = floor(v * 100 / samples + 0.5)
+    local pct = math.floor(v * 100 / samples + 0.5)
     if pct < prof_min then
       break
     end
     if not prof_raw then
-      out:write(format("%s%2d%%  %s\n", indent, pct, k))
+      out:write(("%s%2d%%  %s\n"):format(indent, pct, k))
     elseif prof_raw == "r" then
-      out:write(format("%s%5d  %s\n", indent, v, k))
+      out:write(("%s%5d  %s\n"):format(indent, v, k))
     else
-      out:write(format("%s %d\n", k, v))
+      out:write(("%s %d\n"):format(k, v))
     end
     if count2 then
       local r = count2[k]
@@ -153,7 +148,7 @@ local function prof_annotate(count1, samples)
   local files = {}
   local ms = 0
   for k, v in pairs(count1) do
-    local pct = floor(v * 100 / samples + 0.5)
+    local pct = math.floor(v * 100 / samples + 0.5)
     ms = math.max(ms, v)
     if pct >= prof_min then
       local file, line = k:match("^(.*):(%d+)$")
@@ -171,7 +166,7 @@ local function prof_annotate(count1, samples)
       fl[line] = prof_raw and v or pct
     end
   end
-  sort(files)
+  table.sort(files)
   local fmtv, fmtn = " %3d%% | %s\n", "      | %s\n"
   if prof_raw then
     local n = math.max(5, math.ceil(math.log10(ms)))
@@ -182,15 +177,15 @@ local function prof_annotate(count1, samples)
   for _, file in ipairs(files) do
     local f0 = file:byte()
     if f0 == 40 or f0 == 91 then
-      out:write(format("\n====== %s ======\n[Cannot annotate non-file]\n", file))
+      out:write(("\n====== %s ======\n[Cannot annotate non-file]\n"):format(file))
       break
     end
     local fp, err = io.open(file)
     if not fp then
-      out:write(format("====== ERROR: %s: %s\n", file, err))
+      out:write(("====== ERROR: %s: %s\n"):format(file, err))
       break
     end
-    out:write(format("\n====== %s ======\n", file))
+    out:write(("\n====== %s ======\n"):format(file))
     local fl = files[file]
     local n, show = 1, false
     if ann ~= 0 then
@@ -220,16 +215,16 @@ local function prof_annotate(count1, samples)
           end
         elseif v2 then
           show = n + ann
-          out:write(format("@@ %d @@\n", n))
+          out:write(("@@ %d @@\n"):format(n))
         end
         if not show then
           goto next
         end
       end
       if v then
-        out:write(format(fmtv, v, line))
+        out:write(fmtv:format(v, line))
       else
-        out:write(format(fmtn, line))
+        out:write(fmtn:format(line))
       end
       ::next::
       n = n + 1
@@ -242,30 +237,29 @@ end
 
 -- Finish profiling and dump result.
 local function prof_finish()
-  if prof_ud then
-    profile.stop()
-    local samples = prof_samples
-    if samples == 0 then
-      if prof_raw ~= true then
-        out:write("[No samples collected]\n")
-      end
-      return
-    end
+  if not prof_ud then
+    return
+  end
+
+  profile.stop()
+  local samples = prof_samples
+  if samples == 0 and prof_raw ~= true then
+    out:write("[No samples collected]\n")
+  else
     if prof_ann then
       prof_annotate(prof_count1, samples)
     else
       prof_top(prof_count1, prof_count2, samples, "")
     end
-    prof_count1 = nil
-    prof_count2 = nil
-    prof_ud = nil
-    if out ~= stdout then
+    prof_count1, prof_count2, prof_ud = nil, nil, nil
+    if out ~= io.stdout then
       out:close()
     end
   end
 end
 
 -- Start profiling.
+---@param mode string
 local function prof_start(mode)
   local interval = ""
   mode = mode:gsub("i%d*", function(s)
@@ -282,7 +276,7 @@ local function prof_start(mode)
     prof_depth = tonumber(s)
     return ""
   end)
-  local m = {}
+  local m = {} ---@type table<string, string>
   for c in mode:gmatch(".") do
     m[c] = c
   end
@@ -300,29 +294,21 @@ local function prof_start(mode)
       prof_depth = 2
     end
   elseif mode:find("[fF].*l") then
-    scope = "l"
-    prof_split = 3
+    scope, prof_split = "l", 3
   else
     prof_split = (scope == "" or mode:find("[zv].*[lfF]")) and 1 or 0
   end
   prof_ann = m.A and 0 or (m.a and 3)
   if prof_ann then
-    scope = "l"
-    prof_fmt = "pl"
-    prof_split = 0
-    prof_depth = 1
+    scope, prof_fmt, prof_split, prof_depth = "l", "pl", 0, 1
   elseif m.G and scope ~= "" then
-    prof_fmt = flags .. scope .. "Z;"
-    prof_depth = -100
-    prof_raw = true
-    prof_min = 0
+    prof_fmt, prof_depth, prof_raw, prof_min = flags .. scope .. "Z;", -100, true, 0
   elseif scope == "" then
     prof_fmt = false
   else
     prof_fmt = flags .. (prof_split == 3 and m.f or m.F or scope) .. (prof_depth >= 0 and "Z < " or "Z > ")
   end
-  prof_count1, prof_count2 = {}, {}
-  prof_samples = 0
+  prof_count1, prof_count2, prof_samples = {}, {}, 0
   profile.start(scope:lower() .. interval, prof_cb)
   prof_ud = newproxy(true)
   getmetatable(prof_ud).__gc = prof_finish
@@ -334,7 +320,7 @@ local function start(mode, outfile)
   if not outfile then
     outfile = os.getenv("LUAJIT_PROFILEFILE")
   end
-  out = outfile and (outfile == "-" and stdout or assert(io.open(outfile, "w"))) or stdout
+  out = outfile and (outfile == "-" and io.stdout or assert(io.open(outfile, "w"))) or io.stdout
   prof_start(mode or "f")
 end
 

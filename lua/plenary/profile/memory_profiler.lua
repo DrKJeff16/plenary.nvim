@@ -15,8 +15,7 @@ local cConfig = {
 -- Get the format string of date time.
 local function FormatDateTimeNow()
   local cDateTime = os.date("*t")
-  local strDateTime = string.format(
-    "%04d%02d%02d-%02d%02d%02d",
+  return ("%04d%02d%02d-%02d%02d%02d"):format(
     tostring(cDateTime.year),
     tostring(cDateTime.month),
     tostring(cDateTime.day),
@@ -24,7 +23,6 @@ local function FormatDateTimeNow()
     tostring(cDateTime.min),
     tostring(cDateTime.sec)
   )
-  return strDateTime
 end
 
 -- Get the string result without overrided __tostring.
@@ -91,9 +89,9 @@ local function CreateObjectReferenceInfoContainerFromFile(strFilePath)
   -- Read each line from file.
   local cFile = assert(io.open(strFilePath, "rb"))
   for strLine in cFile:lines() do
-    local strHeader = string.sub(strLine, 1, 2)
+    local strHeader = strLine:sub(1, 2)
     if "--" ~= strHeader then
-      local _, _, strAddr, strName, strRefCount = string.find(strLine, "(.+)\t(.*)\t(%d+)")
+      local _, _, strAddr, strName, strRefCount = strLine:find("(.+)\t(.*)\t(%d+)")
       if strAddr then
         cRefInfo[strAddr] = strRefCount
         cNameInfo[strAddr] = strName
@@ -697,20 +695,20 @@ local function OutputMemorySnapshot(
   end)
 
   -- Save result to file.
-  local bOutputFile = strSavePath and (string.len(strSavePath) > 0)
+  local bOutputFile = strSavePath and (strSavePath:len() > 0)
   local cOutputHandle = nil
   local cOutputEntry = print
 
   if bOutputFile then
     -- Check save path affix.
-    local strAffix = string.sub(strSavePath, -1)
+    local strAffix = strSavePath:sub(-1)
     if ("/" ~= strAffix) and ("\\" ~= strAffix) then
       strSavePath = strSavePath .. "/"
     end
 
     -- Combine file name.
     local strFileName = strSavePath .. "LuaMemRefInfo-All"
-    if (not strExtraFileName) or (0 == string.len(strExtraFileName)) then
+    if (not strExtraFileName) or (0 == strExtraFileName:len()) then
       if cDumpInfoResultsBase then
         if cConfig.m_bComparedMemoryRefFileAddTime then
           strFileName = strFileName .. "-[" .. strDateTime .. "].txt"
@@ -803,9 +801,9 @@ local function OutputMemorySnapshot(
         if i <= nMaxRescords then
           if "string" == type(v) then
             local strOrgString = tostring(v)
-            local nPattenBegin, nPattenEnd = string.find(strOrgString, 'string: ".*"')
+            local nPattenBegin, nPattenEnd = strOrgString:find('string: ".*"')
             if (not cDumpInfoResultsBase) and ((nil == nPattenBegin) or (nil == nPattenEnd)) then
-              local strRepString = string.gsub(strOrgString, "([\n\r])", "\\n")
+              local strRepString = strOrgString:gsub("([\n\r])", "\\n")
               cOutputer('string: "' .. strRepString .. '"\t' .. cNameInfo[v] .. "\t" .. tostring(cRefInfo[v]) .. "\n")
             else
               cOutputer(tostring(v) .. "\t" .. cNameInfo[v] .. "\t" .. tostring(cRefInfo[v]) .. "\n")
@@ -817,9 +815,9 @@ local function OutputMemorySnapshot(
       else
         if "string" == type(v) then
           local strOrgString = tostring(v)
-          local nPattenBegin, nPattenEnd = string.find(strOrgString, 'string: ".*"')
+          local nPattenBegin, nPattenEnd = strOrgString:find('string: ".*"')
           if (not cDumpInfoResultsBase) and ((nil == nPattenBegin) or (nil == nPattenEnd)) then
-            local strRepString = string.gsub(strOrgString, "([\n\r])", "\\n")
+            local strRepString = strOrgString:gsub("([\n\r])", "\\n")
             cOutputer('string: "' .. strRepString .. '"\t' .. cNameInfo[v] .. "\t" .. tostring(cRefInfo[v]) .. "\n")
           else
             cOutputer(tostring(v) .. "\t" .. cNameInfo[v] .. "\t" .. tostring(cRefInfo[v]) .. "\n")
@@ -855,20 +853,20 @@ local function OutputMemorySnapshotSingleObject(strSavePath, strExtraFileName, n
   local cObjectAliasName = cDumpInfoResults.m_cObjectAliasName
 
   -- Save result to file.
-  local bOutputFile = strSavePath and (string.len(strSavePath) > 0)
+  local bOutputFile = strSavePath and (strSavePath:len() > 0)
   local cOutputHandle = nil
   local cOutputEntry = print
 
   if bOutputFile then
     -- Check save path affix.
-    local strAffix = string.sub(strSavePath, -1)
+    local strAffix = strSavePath:sub(-1)
     if ("/" ~= strAffix) and ("\\" ~= strAffix) then
       strSavePath = strSavePath .. "/"
     end
 
     -- Combine file name.
     local strFileName = strSavePath .. "LuaMemRefInfo-Single"
-    if (not strExtraFileName) or (0 == string.len(strExtraFileName)) then
+    if (not strExtraFileName) or (0 == strExtraFileName:len()) then
       if cConfig.m_bSingleMemoryRefFileAddTime then
         strFileName = strFileName .. "-[" .. strDateTime .. "].txt"
       else
@@ -947,12 +945,12 @@ end
 -- bIncludeFilter - Include(true) or exclude(false) the filter.
 -- bOutputFile - Output to file(true) or console(false).
 local function OutputFilteredResult(strFilePath, strFilter, bIncludeFilter, bOutputFile)
-  if (not strFilePath) or (0 == string.len(strFilePath)) then
+  if (not strFilePath) or (0 == strFilePath:len()) then
     print("You need to specify a file path.")
     return
   end
 
-  if (not strFilter) or (0 == string.len(strFilter)) then
+  if (not strFilter) or (0 == strFilter:len()) then
     print("You need to specify a filter string.")
     return
   end
@@ -961,21 +959,21 @@ local function OutputFilteredResult(strFilePath, strFilter, bIncludeFilter, bOut
   local cFilteredResult = {}
   local cReadFile = assert(io.open(strFilePath, "rb"))
   for strLine in cReadFile:lines() do
-    local nBegin, nEnd = string.find(strLine, strFilter)
+    local nBegin, nEnd = strLine:find(strFilter)
     if nBegin and nEnd then
       if bIncludeFilter then
-        nBegin, nEnd = string.find(strLine, "[\r\n]")
-        if nBegin and nEnd and (string.len(strLine) == nEnd) then
-          table.insert(cFilteredResult, string.sub(strLine, 1, nBegin - 1))
+        nBegin, nEnd = strLine:find("[\r\n]")
+        if nBegin and nEnd and (strLine:len() == nEnd) then
+          table.insert(cFilteredResult, strLine:sub(1, nBegin - 1))
         else
           table.insert(cFilteredResult, strLine)
         end
       end
     else
       if not bIncludeFilter then
-        nBegin, nEnd = string.find(strLine, "[\r\n]")
-        if nBegin and nEnd and (string.len(strLine) == nEnd) then
-          table.insert(cFilteredResult, string.sub(strLine, 1, nBegin - 1))
+        nBegin, nEnd = strLine:find("[\r\n]")
+        if nBegin and nEnd and (strLine:len() == nEnd) then
+          table.insert(cFilteredResult, strLine:sub(1, nBegin - 1))
         else
           table.insert(cFilteredResult, strLine)
         end
@@ -993,7 +991,7 @@ local function OutputFilteredResult(strFilePath, strFilter, bIncludeFilter, bOut
 
   if bOutputFile then
     -- Combine file name.
-    local _, _, strResFileName = string.find(strFilePath, "(.*)%.txt")
+    local _, _, strResFileName = strFilePath:find("(.*)%.txt")
     strResFileName = strResFileName .. "-Filter-" .. ((bIncludeFilter and "I") or "E") .. "-[" .. strFilter .. "].txt"
 
     local cFile = assert(io.open(strResFileName, "w"))
@@ -1032,7 +1030,7 @@ local function DumpMemorySnapshot(strSavePath, strExtraFileName, nMaxRescords, s
 
   -- Check root object.
   if cRootObject then
-    if (not strRootObjectName) or (0 == string.len(strRootObjectName)) then
+    if (not strRootObjectName) or (0 == strRootObjectName:len()) then
       strRootObjectName = tostring(cRootObject)
     end
   else
@@ -1107,7 +1105,7 @@ local function DumpMemorySnapshotSingleObject(strSavePath, strExtraFileName, nMa
     return
   end
 
-  if (not strObjectName) or (0 == string.len(strObjectName)) then
+  if (not strObjectName) or (0 == strObjectName:len()) then
     strObjectName = GetOriginalToStringResult(cObject)
   end
 

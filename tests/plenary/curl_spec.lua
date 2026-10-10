@@ -1,7 +1,7 @@
 local curl = require("plenary.curl")
 local eq = assert.are.same
 local incl = function(p, s)
-  return (nil ~= string.find(s, p))
+  return (nil ~= s:find(p))
 end
 
 describe("CURL Wrapper:", function()

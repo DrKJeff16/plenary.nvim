@@ -1,3 +1,8 @@
+if vim.g.plenary_loaded == 1 then
+  return
+end
+vim.g.plenary_loaded = 1
+
 vim.api.nvim_create_user_command("PlenaryBustedFile", function(args)
   require("plenary.test_harness").test_file(args.args)
 end, { nargs = 1, complete = "file" })

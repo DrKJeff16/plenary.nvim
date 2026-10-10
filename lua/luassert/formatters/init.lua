@@ -32,7 +32,7 @@ end
 
 local function fmt_string(arg)
   if type(arg) == "string" then
-    return string.format("(string) '%s'", arg)
+    return ("(string) '%s'"):format(arg)
   end
 end
 
@@ -44,32 +44,32 @@ local function tostr(arg)
 
   if arg ~= arg then
     return "NaN"
-  elseif arg == 1 / 0 then
+  end
+  if arg == 1 / 0 then
     return "Inf"
-  elseif arg == -1 / 0 then
+  end
+  if arg == -1 / 0 then
     return "-Inf"
   end
 
-  local str = string.format("%.20g", arg)
-
+  local str = ("%.20g"):format(arg)
   if math.type and math.type(arg) == "float" and not str:find("[%.,]") then
     -- Number is a float but looks like an integer.
     -- Insert ".0" after first run of digits.
     str = str:gsub("%d+", "%0.0", 1)
   end
-
   return str
 end
 
 local function fmt_number(arg)
   if type(arg) == "number" then
-    return string.format("(number) %s", tostr(arg))
+    return ("(number) %s"):format(tostr(arg))
   end
 end
 
 local function fmt_boolean(arg)
   if type(arg) == "boolean" then
-    return string.format("(boolean) %s", tostring(arg))
+    return ("(boolean) %s"):format(tostring(arg))
   end
 end
 
@@ -181,9 +181,13 @@ local function fmt_table(arg, fmtargs)
       end
 
       local ch = use_crumbs and errchar or ""
-      local indent = string.rep(" ", l * 2 - ch:len())
-      local mark = (ch:len() == 0 and "" or colors[errcolor](ch))
-      result = result .. string.format("\n%s%s[%s] = %s", indent, mark, tostr(k), tostr(v))
+      result = ("%s\n%s%s[%s] = %s"):format(
+        result,
+        (" "):rep(l * 2 - ch:len()),
+        (ch:len() == 0 and "" or colors[errcolor](ch)),
+        tostr(k),
+        tostr(v)
+      )
     end
 
     cache[t] = cache[t] - 1
@@ -197,40 +201,34 @@ end
 local function fmt_function(arg)
   if type(arg) == "function" then
     local debug_info = debug.getinfo(arg)
-    return string.format(
-      "%s @ line %s in %s",
-      tostring(arg),
-      tostring(debug_info.linedefined),
-      tostring(debug_info.source)
-    )
+    return ("%s @ line %s in %s"):format(tostring(arg), tostring(debug_info.linedefined), tostring(debug_info.source))
   end
 end
 
 local function fmt_userdata(arg)
   if type(arg) == "userdata" then
-    return string.format("(userdata) '%s'", tostring(arg))
+    return ("(userdata) '%s'"):format(tostring(arg))
   end
 end
 
 local function fmt_thread(arg)
   if type(arg) == "thread" then
-    return string.format("(thread) '%s'", tostring(arg))
+    return ("(thread) '%s'"):format(tostring(arg))
   end
 end
 
 local function fmt_matcher(arg)
-  if not match.is_matcher(arg) then
-    return
+  if match.is_matcher(arg) then
+    local not_inverted = {
+      [true] = "is.",
+      [false] = "no.",
+    }
+    local args = {}
+    for idx = 1, arg.arguments.n do
+      table.insert(args, assert:format({ arg.arguments[idx], n = 1 })[1])
+    end
+    return ("(matcher) %s%s(%s)"):format(not_inverted[arg.mod], tostring(arg.name), table.concat(args, ", "))
   end
-  local not_inverted = {
-    [true] = "is.",
-    [false] = "no.",
-  }
-  local args = {}
-  for idx = 1, arg.arguments.n do
-    table.insert(args, assert:format({ arg.arguments[idx], n = 1 })[1])
-  end
-  return string.format("(matcher) %s%s(%s)", not_inverted[arg.mod], tostring(arg.name), table.concat(args, ", "))
 end
 
 local function fmt_arglist(arglist)

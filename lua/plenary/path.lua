@@ -572,7 +572,7 @@ function Path:copy(opts)
     end
     return success
   else
-    error(string.format("Warning: %s was not copied as `recursive=false`", self:absolute()))
+    error(("Warning: %s was not copied as `recursive=false`"):format(self:absolute()))
   end
 end
 

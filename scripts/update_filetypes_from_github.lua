@@ -63,8 +63,9 @@ local prio = {
   exact_match = 3,
 }
 
-local find_filetype = function(name, linguist_info, filetype_set)
-  name = string.lower(name)
+---@param name string
+local function find_filetype(name, linguist_info, filetype_set)
+  name = name:lower()
 
   local filetype, priority = nil, -1
   if filetype_set[name] then
@@ -74,7 +75,7 @@ local find_filetype = function(name, linguist_info, filetype_set)
   if not filetype then
     if linguist_info.aliases then
       for _, ft in ipairs(linguist_info.aliases) do
-        ft = string.lower(ft)
+        ft = ft:lower()
         if filetype_set[ft] then
           filetype, priority = ft, prio.alias
 
@@ -184,13 +185,13 @@ local parse_file = function()
 
   result = result .. "  extension = {\n"
   for k, v in pairs(output.extension) do
-    result = result .. string.format("    ['%s'] = [[%s]],\n", k, v.filetype)
+    result = result .. ("    ['%s'] = [[%s]],\n"):format(k, v.filetype)
   end
   result = result .. '  },\n'
 
   result = result .. "  file_name = {\n"
   for k, v in pairs(output.file_name) do
-    result = result .. string.format("    ['%s'] = [[%s]],\n", k, v.filetype)
+    result = result .. ("    ['%s'] = [[%s]],\n"):format(k, v.filetype)
   end
   result = result .. '  },\n'
 

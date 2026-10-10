@@ -12,7 +12,7 @@ function Timing:check(from, to, min_elapsed)
   local elapsed = self[to] - self[from]
   assert(
     min_elapsed <= elapsed,
-    string.format("only took %s to get from %s to %s - expected at least %s", elapsed, from, to, min_elapsed)
+    ("only took %s to get from %s to %s - expected at least %s"):format(elapsed, from, to, min_elapsed)
   )
 end
 

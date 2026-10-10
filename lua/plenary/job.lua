@@ -45,18 +45,12 @@ end
 local function start_shutdown_check(child, options, code, signal)
   if child then
     uv.check_start(child._shutdown_check, function()
-      if not child:_pipes_are_closed(options) then
-        return
+      if child:_pipes_are_closed(options) then
+        uv.check_stop(child._shutdown_check) -- Wait until all the pipes are closing
+        child._shutdown_check = nil
+        child:_shutdown(code, signal)
+        child = nil -- Remove left over references
       end
-
-      -- Wait until all the pipes are closing.
-      uv.check_stop(child._shutdown_check)
-      child._shutdown_check = nil
-
-      child:_shutdown(code, signal)
-
-      -- Remove left over references
-      child = nil
     end)
   end
 end
@@ -73,12 +67,11 @@ local function shutdown_factory(child, options)
 end
 
 ---@param path string
+---@return string expanded_path
 local function expand(path)
-  if vim.in_fast_event() then
-    return assert(uv.fs_realpath(path), ("Path must be valid: %s"):format(path))
-  end
   -- TODO: Probably want to check that this is valid here... otherwise that's weird.
-  return vim.fn.expand(vim.fn.escape(path, "[]$"), true)
+  return vim.in_fast_event() and assert(uv.fs_realpath(path), ("Path must be valid: %s"):format(path))
+    or vim.fn.expand(vim.fn.escape(path, "[]$"), true)
 end
 
 ---Numeric table

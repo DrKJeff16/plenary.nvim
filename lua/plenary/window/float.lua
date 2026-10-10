@@ -52,13 +52,12 @@ function win_float.centered(options)
   local bufnr = options.bufnr or vim.api.nvim_create_buf(false, true)
   local win_id = vim.api.nvim_open_win(bufnr, true, win_float.default_opts(options))
 
-  -- vim.cmd("setlocal nocursorcolumn")
   win_optset(win_id, "cursorcolumn", false)
   win_optset(win_id, "winblend", options.winblend)
 
   vim.api.nvim_exec_autocmds("WinLeave", { buffer = bufnr })
   vim.cmd.bdelete({ args = { tostring(bufnr) }, bang = true, mods = { silent = true } })
-  -- vim.cmd(string.format("autocmd WinLeave <buffer> silent! execute 'bdelete! %s'", bufnr))
+  -- vim.cmd(("autocmd WinLeave <buffer> silent! execute 'bdelete! %s'"):format(bufnr))
 
   return { bufnr = bufnr, win_id = win_id }
 end
@@ -94,21 +93,6 @@ function win_float.centered_with_top_win(top_text, options)
   -- vim.cmd("setlocal nocursorcolumn")
   win_optset(primary_win_id, "cursorcolumn", false)
   win_optset(primary_win_id, "winblend", options.winblend)
-
-  -- vim.cmd(
-  --   string.format(
-  --     "autocmd WinLeave,BufDelete,BufLeave <buffer=%s> ++once ++nested silent! execute 'bdelete! %s'",
-  --     primary_buf,
-  --     minor_buf
-  --   )
-  -- )
-
-  -- vim.cmd(
-  --   string.format(
-  --     "autocmd WinLeave,BufDelete,BufLeave <buffer> ++once ++nested silent! execute 'bdelete! %s'",
-  --     primary_buf
-  --   )
-  -- )
 
   local primary_border = Border:new(primary_bufnr, primary_win_id, primary_win_opts, {})
   local minor_border = Border:new(minor_bufnr, minor_win_id, minor_win_opts, {})

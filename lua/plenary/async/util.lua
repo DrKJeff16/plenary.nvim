@@ -1,25 +1,23 @@
 local a = require("plenary.async.async")
 local vararg = require("plenary.vararg")
--- local control = a.control
 local control = require("plenary.async.control")
 local channel = control.channel
 
 local M = {}
 
-local defer_swapped = function(timeout, callback)
+local function defer_swapped(timeout, callback)
   vim.defer_fn(callback, timeout)
 end
 
 ---Sleep for milliseconds
----@param ms number
-M.sleep = a.wrap(defer_swapped, 2)
+M.sleep = a.wrap(defer_swapped, 2) ---@type fun(ms: integer)
 
 ---This will COMPLETELY block neovim
 ---please just use a.run unless you have a very special usecase
 ---for example, in plenary test_harness you must use this
----@param async_function Future
----@param timeout number: Stop blocking if the timeout was surpassed. Default 2000.
-M.block_on = function(async_function, timeout)
+---@param async_function Future|function
+---@param timeout integer: Stop blocking if the timeout was surpassed. Default 2000.
+function M.block_on(async_function, timeout)
   async_function = M.protected(async_function)
 
   local stat
@@ -35,7 +33,7 @@ M.block_on = function(async_function, timeout)
   end, 20, false)
 
   if stat == false then
-    error(string.format("Blocking on future timed out or was interrupted.\n%s", unpack(ret)))
+    error(("Blocking on future timed out or was interrupted.\n%s"):format(unpack(ret)))
   end
 
   return unpack(ret)
@@ -43,14 +41,14 @@ end
 
 ---@see M.block_on
 ---@param async_function Future
----@param timeout number
-M.will_block = function(async_function, timeout)
+---@param timeout integer
+function M.will_block(async_function, timeout)
   return function()
     M.block_on(async_function, timeout)
   end
 end
 
-M.join = function(async_fns)
+function M.join(async_fns)
   local len = #async_fns
   local results = {}
   if len == 0 then
@@ -81,29 +79,27 @@ M.join = function(async_fns)
 end
 
 ---Returns a result from the future that finishes at the first
----@param async_functions table: The futures that you want to select
----@return ...
-M.run_first = a.wrap(function(async_functions, step)
+---@param async_functions function[]: The futures that you want to select
+---@param step fun(...: any)
+M.run_first = a.wrap(function(async_functions, step) ---@type fun(async_functions: function[]): ...
   local ran = false
 
   for _, async_function in ipairs(async_functions) do
     assert(type(async_function) == "function", "type error :: future must be function")
 
-    local callback = function(...)
+    async_function(function(...)
       if not ran then
         ran = true
         step(...)
       end
-    end
-
-    async_function(callback)
+    end)
   end
 end, 2)
 
 ---Returns a result from the functions that finishes at the first
----@param funcs table: The async functions that you want to select
+---@param funcs function[]: The async functions that you want to select
 ---@return ...
-M.race = function(funcs)
+function M.race(funcs)
   local async_functions = vim.tbl_map(function(func)
     return function(callback)
       a.run(func, callback)
@@ -112,7 +108,7 @@ M.race = function(funcs)
   return M.run_first(async_functions)
 end
 
-M.run_all = function(async_fns, callback)
+function M.run_all(async_fns, callback)
   a.run(function()
     M.join(async_fns)
   end, callback)

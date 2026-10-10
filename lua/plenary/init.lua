@@ -31,11 +31,15 @@ local M = setmetatable({}, {
   ---@param self plenary
   ---@param k string|integer
   __index = function(self, k)
+    local raw = rawget(self, k) or nil
+    if raw then
+      return raw
+    end
+
     if pcall(require, "plenary." .. k) then
       rawset(self, k, require("plenary." .. k))
       return require("plenary." .. k)
     end
-    return rawget(self, k)
   end,
 })
 

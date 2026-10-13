@@ -1,5 +1,6 @@
-require "luassert"
-local namespaces = require "luassert.namespaces"
+require("luassert")
+local namespaces = require("luassert.namespaces")
+local uv = vim.uv or vim.loop
 
 local reserved_words = {
   "and",
@@ -39,39 +40,34 @@ local content = {
 }
 
 local args_count_per_matcher = {
-  matches = 2,
-  match = 2,
   equal = 2,
   equals = 2,
-  same = 2,
   error_match = 2,
   error_matches = 2,
-  matches_error = 2,
+  match = 2,
   match_error = 2,
+  matches = 2,
+  matches_error = 2,
   near = 3,
+  same = 2,
 }
 
 local get_type_by_args = function(assertion)
   local arg_count = args_count_per_matcher[assertion] or 1
-  if arg_count == 1 then
-    return "LuassertFunction"
-  end
-  if arg_count == 2 then
-    return "LuassertFunctionTwoArgs"
-  end
-  return "LuassertFunctionMultiArgs"
+  return arg_count == 1 and "LuassertFunction"
+    or (arg_count == 2 and "LuassertFunctionTwoArgs" or "LuassertFunctionMultiArgs")
 end
 
-local fix_reserved_words = function(word)
+---@param word string
+---@return string word
+local function fix_reserved_words(word)
   if vim.tbl_contains(reserved_words, word) then
-    return table.concat { word:sub(1, 1):upper(), word:sub(2) }
+    return table.concat({ word:sub(1, 1):upper(), word:sub(2) })
   end
   return word
 end
 
-local assertions = vim.tbl_keys(namespaces.assertion)
-local modifiers = vim.tbl_keys(namespaces.modifier)
-
+local assertions, modifiers = vim.tbl_keys(namespaces.assertion), vim.tbl_keys(namespaces.modifier)
 table.sort(assertions)
 table.sort(modifiers)
 
@@ -89,6 +85,6 @@ for _, modifier in ipairs(modifiers) do
   table.insert(content, ("---@field %s Luassert"):format(fix_reserved_words(modifier)))
 end
 
-local fd = assert(vim.loop.fs_open("./lua/plenary/_meta/_luassert.lua", "w", 438))
-assert(vim.loop.fs_write(fd, table.concat(content, "\n"), 0))
-assert(vim.loop.fs_close(fd))
+local fd = assert(uv.fs_open("./lua/plenary/_meta/_luassert.lua", "w", 438))
+assert(uv.fs_write(fd, table.concat(content, "\n"), 0))
+assert(uv.fs_close(fd))

@@ -1,7 +1,7 @@
 local FORCE_DOWNLOAD = false
 
-local log = require('plenary.log')
-
+local uv = vim.uv or vim.loop
+local log = require("plenary.log")
 
 -- Defines all Languages known to GitHub.
 --
@@ -35,21 +35,20 @@ local log = require('plenary.log')
 -- group                 - Name of the parent language. Languages in a group are counted
 --                         in the statistics as the parent language.
 
-local lyaml = require('lyaml')
+local lyaml = require("lyaml")
 
-local Path = require('plenary.path')
-local curl = require('plenary.curl')
+local Path = require("plenary.path")
+local curl = require("plenary.curl")
 
 local write_file = function(path, string)
-  local fd = assert(vim.loop.fs_open(path, "w", 438))
-  assert(vim.loop.fs_write(fd, string, 0))
-  assert(vim.loop.fs_close(fd))
+  local fd = assert(uv.fs_open(path, "w", 438))
+  assert(uv.fs_write(fd, string, 0))
+  assert(uv.fs_close(fd))
 end
 
 if FORCE_DOWNLOAD or not Path:new("build/languages.yml"):exists() then
-  local languages_yml = curl.get(
-    'https://raw.githubusercontent.com/github/linguist/master/lib/linguist/languages.yml'
-  ).body
+  local languages_yml =
+    curl.get("https://raw.githubusercontent.com/github/linguist/master/lib/linguist/languages.yml").body
 
   write_file("build/languages.yml", languages_yml)
 else
@@ -57,9 +56,9 @@ else
 end
 
 local prio = {
-  no_match    = -1,
-  scope       = 1,
-  alias       = 2,
+  no_match = -1,
+  scope = 1,
+  alias = 2,
   exact_match = 3,
 }
 
@@ -103,18 +102,17 @@ local overeager_filetypes = {
   xml = true,
 }
 
-
 local parse_file = function()
   local yml_string = Path:new("build/languages.yml"):read()
   local yml_table = lyaml.load(yml_string)
 
   local output = {
     extension = {},
-    file_name = {}
+    file_name = {},
   }
   local intervention = {}
 
-  local filetype_completions = vim.fn.getcompletion('', 'filetype')
+  local filetype_completions = vim.fn.getcompletion("", "filetype")
 
   local filetype_set = {}
   for _, completed_ft in ipairs(filetype_completions) do
@@ -128,15 +126,25 @@ local parse_file = function()
         log.debug("Overager:", output.extension[ext].filetype)
       elseif output.extension[ext].priority > priority then
         log.debug(
-          "Skipping:", ext, filetype, priority,
-          "due to existing:", output.extension[ext].priority, output.extension[ext].filetype
+          "Skipping:",
+          ext,
+          filetype,
+          priority,
+          "due to existing:",
+          output.extension[ext].priority,
+          output.extension[ext].filetype
         )
 
         return
       else
         log.debug(
-          "Override:", ext, filetype, priority,
-          "due to existing:", output.extension[ext].priority, output.extension[ext].filetype
+          "Override:",
+          ext,
+          filetype,
+          priority,
+          "due to existing:",
+          output.extension[ext].priority,
+          output.extension[ext].filetype
         )
       end
     end
@@ -149,7 +157,7 @@ local parse_file = function()
 
   local add_filename = function(filename, filetype)
     output.file_name[filename:lower()] = {
-      filetype = filetype:lower()
+      filetype = filetype:lower(),
     }
   end
 
@@ -159,7 +167,7 @@ local parse_file = function()
     if filetype then
       if v.extensions then
         for _, ext in ipairs(v.extensions) do
-          if ext:sub(1, 1) == '.' then
+          if ext:sub(1, 1) == "." then
             ext = ext:sub(2, #ext)
           end
 
@@ -181,21 +189,21 @@ local parse_file = function()
 
   -- P(intervention)
 
-  local result = 'return {\n'
+  local result = "return {\n"
 
   result = result .. "  extension = {\n"
   for k, v in pairs(output.extension) do
     result = result .. ("    ['%s'] = [[%s]],\n"):format(k, v.filetype)
   end
-  result = result .. '  },\n'
+  result = result .. "  },\n"
 
   result = result .. "  file_name = {\n"
   for k, v in pairs(output.file_name) do
     result = result .. ("    ['%s'] = [[%s]],\n"):format(k, v.filetype)
   end
-  result = result .. '  },\n'
+  result = result .. "  },\n"
 
-  result = result .. '}\n'
+  result = result .. "}\n"
 
   return result
 end
@@ -205,5 +213,5 @@ local res = parse_file()
 print("...Done")
 
 print("Writing File...")
-write_file('./data/plenary/filetypes/base.lua', res)
+write_file("./data/plenary/filetypes/base.lua", res)
 print("...Done!")
